@@ -1,0 +1,21 @@
+{
+    "ap": {
+        "vigencia": "+30 días",
+        "inicio": "25 agosto",
+        "fin": "27 agosto",
+        "actividad": "Comercios, Restaurantes y Hoteles",
+        "clasificacion": "Actividades Vinculadas a Restaurantes",
+        "tarea": "Mozo",
+        "sit_impositiva": "Consumidor final",
+        "c_postal": "5009",
+        "localidad": "CERRO DE LAS ROSAS",
+        "formaPago": "Efectivo",
+        "params": true,
+        "edad": "14 y 70 años",
+        "mei": "$50.500.000",
+        "amf": "$19.000.000",
+        "rdi": "$30.000",
+        "deducible": "$80.000",
+        "subsidio": "$1.632.576"
+    }
+}

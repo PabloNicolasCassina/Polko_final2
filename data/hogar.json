@@ -1,0 +1,10 @@
+{
+    "hogar": {
+        "tipo": "Casa",
+        "codigo_postal": "5009",
+        "localidad": "Cerro de las Rosas",
+        "tamanio": "Pequeña",
+        "formaPago": "Débito por CBU",
+        "descuento": true
+    }
+}

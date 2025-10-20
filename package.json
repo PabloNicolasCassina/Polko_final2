@@ -1,0 +1,17 @@
+{
+  "name": "polko_final",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "auth": "powershell -Command \"Remove-Item -Path 'C:\\Polko\\Polko_final\\.auth\\userPre.json' -ErrorAction SilentlyContinue; playwright test tests/auth.setup.pre.ts --headed\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.7.0"
+  }
+}
