@@ -104,13 +104,17 @@ export default class EmisionAutoPage {
     }
 
     async tablaCotizacion() {
-        await this.cotizacionTabla.configAvanzadaBtn.waitFor();
+        await expect(this.cotizacionTabla.configAvanzadaBtn.or(this.cotizacionTabla.cotizacionErrorText)).toBeVisible({ timeout: 60000 });
+        const errorVisible = await this.cotizacionTabla.cotizacionErrorText.isVisible();
+        if (errorVisible) {
+            throw new Error("Hubo un problema al cotizar la póliza.");
+        }
         await this.cotizacionTabla.configAvanzadaBtn.click();
         await this.cotizacionTabla.fechaVigencia.fill(this.cotizacionTabla.setVechaVigencia());
         await this.cotizacionTabla.descuentoBar15.click();
         await this.buttons.aplicarCambiosBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
-        
+
     }
 
     async emitirFormaPago(auto: any) {
@@ -179,19 +183,19 @@ export default class EmisionAutoPage {
     }
 
     async emitirFinal() {
-                    
-                    await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
-                    await this.buttons.emitirBtn.click();
-                    await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
-                    await expect(this.emisionFinal.emisionExitosaText.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: 60000 });
-                    const errorVisible = await this.emisionFinal.errorEmision.isVisible();
-                    if (errorVisible) {
-                        throw new Error("Hubo un problema al emitir la póliza.");
-                    }
-                    await expect(this.emisionFinal.descargaBtn).toBeEnabled({ timeout: 60000 });
-                };
 
-    
+        await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
+        await this.buttons.emitirBtn.click();
+        await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
+        await expect(this.emisionFinal.emisionExitosaText.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: 60000 });
+        const errorVisible = await this.emisionFinal.errorEmision.isVisible();
+        if (errorVisible) {
+            throw new Error("Hubo un problema al emitir la póliza.");
+        }
+        await expect(this.emisionFinal.descargaBtn).toBeEnabled({ timeout: 60000 });
+    };
+
+
 
 
 }

@@ -29,6 +29,7 @@ export default class CotizacionTabla {
     readonly formaPagoSiguiente: Locator;
     readonly companiasMap: { [key: string]: Locator };
     readonly companiasRowsMap: { [key: string]: Locator };
+    readonly cotizacionErrorText: Locator;
     
     
 
@@ -74,6 +75,8 @@ export default class CotizacionTabla {
             'atm': this.atmRow
         };
 
+        this.cotizacionErrorText = page.getByText('Hubo un problema');
+
 
     }
 
@@ -111,6 +114,8 @@ export default class CotizacionTabla {
         console.log("Valor cobertura es" + valorSinSigno);
         return valorSinSigno;
     }
+
+    
 
 
 

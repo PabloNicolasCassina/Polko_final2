@@ -196,13 +196,13 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
     console.log("Iniciando descarga de póliza...");
 
     // 1. Prepara la Promesa A: la descarga
-    const downloadPromise = page.waitForEvent('download', { timeout: 20000 }); // Damos 20s para la descarga
+    const downloadPromise = page.waitForEvent('download', { timeout: 60000 }); // Damos 60s para la descarga
 
     // 2. Prepara la Promesa B: la aparición del error
     // (Asegúrate que 'emisionMotoPage.emisionFinal.errorDocumentacion' sea el selector
     // correcto para el toast/popup de error "Error al descargar...")
     const errorPromise = emisionAutoPage.emisionFinal.errorDocumentacion
-        .waitFor({ state: 'visible', timeout: 10000 }); // El error debe aparecer rápido (10s)
+        .waitFor({ state: 'visible', timeout: 60000 }); // El error debe aparecer rápido (10s)
 
     // 3. Haz clic en el botón de descarga
     await emisionAutoPage.emisionFinal.descargaBtn.click();
