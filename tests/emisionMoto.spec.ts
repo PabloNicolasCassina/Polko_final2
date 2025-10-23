@@ -2,14 +2,14 @@ import { test, expect, type TestInfo, type Page, Download } from "@playwright/te
 import path from 'path'; // Se agrega la importación de 'path'
 import fs from 'fs';     // Se agrega la importación de 'fs'
 import DashboardPage from "../pages/dashboardPage";
-import EmisionAutoPage from "../pages/emisionAutoPage";
-import data from "../data/autos.json";
+import EmisionMotoPage from "../pages/emisionMotoPage";
+import data from "../data/motos.json";
 import CommonButtons from "../components/commonButtons";
 import Companias from "../components/companias";
-import CotizacionTabla from "../components/auto/cotizacionTabla";
+import CotizacionTabla from "../components/moto/cotizacionTablaMoto";
 
 let dashboardPage: DashboardPage;
-let emisionAutoPage: EmisionAutoPage;
+let emisionMotoPage: EmisionMotoPage;
 let commonButtons: CommonButtons;
 let companias: Companias;
 let cotizacionTabla: CotizacionTabla;
@@ -31,6 +31,10 @@ test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ p
 
     // LA NAVEGACIÓN INICIAL SE HA MOVIDO A CADA TEST INDIVIDUAL.
 });
+
+const companiasPosibles = [
+    'sancor', 'rivadavia', 'rus', 'atm'
+];
 
 test.afterEach(async ({ page }, testInfo) => {
   
@@ -83,44 +87,38 @@ test.afterEach(async ({ page }, testInfo) => {
   }
 });
 
-
-const companiasPosibles = [
-    'zurich', 'sancor', 'federacion_patronal',
-    'rivadavia', 'rus', 'experta', 'atm'
-];
-
-function prepararDatosAuto(auto: any, companiaActiva: string): any {
+function prepararDatosMoto(moto: any, companiaActiva: string): any {
     // 1. Ponemos todas las compañías en 'false'
     for (const compania of companiasPosibles) {
-        if (auto.hasOwnProperty(compania)) {
-            auto[compania] = false;
+        if (moto.hasOwnProperty(compania)) {
+            moto[compania] = false;
         }
     }
 
     // 2. Ponemos la compañía deseada en 'true'
-    if (auto.hasOwnProperty(companiaActiva)) {
-        auto[companiaActiva] = true;
+    if (moto.hasOwnProperty(companiaActiva)) {
+        moto[companiaActiva] = true;
     } else {
         // Es bueno tener una verificación por si el nombre de la compañía es incorrecto
         throw new Error(`La compañía "${companiaActiva}" no es una clave válida en el objeto de datos.`);
     }
 
-    return auto;
+    return moto;
 }
 
 //const companiasParaProbar = ['sancor', 'zurich', 'atm'];
 
-// 2. Bucle externo: recorre cada auto del JSON
-for (const auto of data.autos) {
+// 2. Bucle externo: recorre cada moto del JSON
+for (const moto of data.motos) {
 
     // 3. Bucle interno: recorre cada compañía que quieres probar
     for (const compania of companiasPosibles) {
 
-        // 4. Crea un test para CADA combinación de auto y compañía
-        test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania}`, async ({ page }) => {
+        // 4. Crea un test para CADA combinación de moto y compañía
+        test(`Cotizar ${moto.marca} ${moto.version} ${moto.año} con ${compania}`, async ({ page }) => {
             test.setTimeout(1200000);
             dashboardPage = new DashboardPage(page);
-            emisionAutoPage = new EmisionAutoPage(page);
+            emisionMotoPage = new EmisionMotoPage(page);
             commonButtons = new CommonButtons(page);
             companias = new Companias(page);
             cotizacionTabla = new CotizacionTabla(page);
@@ -128,10 +126,10 @@ for (const auto of data.autos) {
             // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
 
 
-            await page.goto("http://localhost:3000/u/cotizar/automotor");
+            await page.goto("http://localhost:3000/u/cotizar/motovehiculo");
             await commonButtons.siguienteBtn.waitFor();
-            await cotizar(test, auto, compania);
-            await emitir(test, auto, compania);
+            await cotizar(test, moto, compania);
+            await emitir(test, moto, compania);
 
             // 6. Llama a tus métodos del Page Object con los datos ya preparados
 
@@ -139,22 +137,24 @@ for (const auto of data.autos) {
     }
 }
 
-async function cotizar(test: any, auto: any, compania: string) {
-    const datosDelTest = prepararDatosAuto({ ...auto }, compania);
+async function cotizar(test: any, moto: any, compania: string) {
+    const datosDelTest = prepararDatosMoto({ ...moto }, compania);
     await test.step(`📝Flujo cotización póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar Compañía", async () => {
+            await companias.sancorLogo.click();
+            await companias.rusLogo.click();
             await companias.getCompaniaLogo(compania).click();
             await commonButtons.aceptarSelector.click();
         });
 
-        await test.step("2- Completar datos del auto", async () => {
-            await emisionAutoPage.seleccionarAuto(datosDelTest, compania);
+        await test.step("2- Completar datos de la moto", async () => {
+            await emisionMotoPage.seleccionarMoto(datosDelTest, compania);
         });
         await test.step("3- Completar datos del asegurado", async () => {
-            await emisionAutoPage.seleccionarPersona(datosDelTest);
+            await emisionMotoPage.seleccionarPersona(datosDelTest);
         });
         await test.step("4- Flujo tabla de cotización", async () => {
-            await emisionAutoPage.tablaCotizacion();
+            await emisionMotoPage.tablaCotizacion(datosDelTest);
             await cotizacionTabla.getValorCobertura(compania);
             await cotizacionTabla.getCompaniaBtn(compania).click();
         });
@@ -165,27 +165,27 @@ async function cotizar(test: any, auto: any, compania: string) {
     });
 }
 
-async function emitir(test: any, auto: any, compania: string) {
-    const datosDelTest = prepararDatosAuto({ ...auto }, compania);
+async function emitir(test: any, moto: any, compania: string) {
+    const datosDelTest = prepararDatosMoto({ ...moto }, compania);
     await test.step(`📝Flujo emisión póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar forma de pago", async () => {
-            await emisionAutoPage.emitirFormaPago(datosDelTest);
+            await emisionMotoPage.emitirFormaPago(datosDelTest);
         });
         await test.step("2- Completar datos del cliente", async () => {
-            await emisionAutoPage.emitirCliente();
+            await emisionMotoPage.emitirCliente();
         });
         await test.step("3- Completar detalle del auto", async () => {
-            await emisionAutoPage.emitirDetalleAuto();
+            await emisionMotoPage.emitirDetalleAuto();
         });
         await test.step("4- Completar inspección", async () => {
-            await emisionAutoPage.emitirInspeccion();
+            await emisionMotoPage.emitirInspeccion();
         });
         await test.step("5- Emisión de póliza", async () => {
-            
-            await emisionAutoPage.emitirFinal();
+
+            await emisionMotoPage.emitirFinal();
         });
         await test.step("6- Descargar y adjuntar póliza", async () => {
-            await descargarYAdjuntarPoliza(emisionAutoPage.page, test.info());
+            await descargarYAdjuntarPoliza(emisionMotoPage.page, test.info());
         });
 
     });
@@ -201,11 +201,11 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
     // 2. Prepara la Promesa B: la aparición del error
     // (Asegúrate que 'emisionMotoPage.emisionFinal.errorDocumentacion' sea el selector
     // correcto para el toast/popup de error "Error al descargar...")
-    const errorPromise = emisionAutoPage.emisionFinal.errorDocumentacion
+    const errorPromise = emisionMotoPage.emisionFinal.errorDocumentacion
         .waitFor({ state: 'visible', timeout: 10000 }); // El error debe aparecer rápido (10s)
 
     // 3. Haz clic en el botón de descarga
-    await emisionAutoPage.emisionFinal.descargaBtn.click();
+    await emisionMotoPage.emisionFinal.descargaBtn.click();
     console.log("Clic en Descargar. Esperando resultado...");
 
     // 4. Espera a ver qué promesa se resuelve primero

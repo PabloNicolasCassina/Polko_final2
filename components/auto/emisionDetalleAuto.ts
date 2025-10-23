@@ -66,7 +66,7 @@ export default class EmisionDetalleAuto {
 
     public generarNroCilindroAleatorio(): string {
         const prefijo = 'CIL';
-        const aleatorio = Math.random().toString(36).substring(2, 12).toUpperCase();
+        const aleatorio = Math.random().toString(36).substring(2, 9).toUpperCase();
         return prefijo + aleatorio;
     }
 

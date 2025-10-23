@@ -1,13 +1,13 @@
 import { Page, Locator, expect } from "@playwright/test";
 import CommonButtons from "../components/commonButtons";
-import CotizacionVehiculo from "../components/cotizacionVehiculo";
-import CotizacionPersona from "../components/cotizacionPersona";
-import CotizacionTabla from "../components/cotizacionTabla";
-import EmisionCliente from "../components/emisionCliente";
+import CotizacionVehiculo from "../components/auto/cotizacionVehiculo";
+import CotizacionPersona from "../components/auto/cotizacionPersona";
+import CotizacionTabla from "../components/auto/cotizacionTabla";
+import EmisionCliente from "../components/auto/emisionCliente";
 import Companias from "../components/companias";
-import EmisionFormaPago from "../components/emisionFormaPago";
-import EmisionDetalleAuto from "../components/emisionDetalleAuto";
-import EmisionInspeccion from "../components/emisionInspeccion";
+import EmisionFormaPago from "../components/auto/emisionFormaPago";
+import EmisionDetalleAuto from "../components/auto/emisionDetalleAuto";
+import EmisionInspeccion from "../components/auto/emisionInspeccion";
 import emisionFinal from "../components/emisionFinal";
 import { get } from "http";
 import EmisionFinal from "../components/emisionFinal";
@@ -105,9 +105,9 @@ export default class EmisionAutoPage {
 
     async tablaCotizacion() {
         await this.cotizacionTabla.configAvanzadaBtn.waitFor();
-        await this.cotizacionTabla.getValorCobertura();
         await this.cotizacionTabla.configAvanzadaBtn.click();
         await this.cotizacionTabla.fechaVigencia.fill(this.cotizacionTabla.setVechaVigencia());
+        await this.cotizacionTabla.descuentoBar15.click();
         await this.buttons.aplicarCambiosBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
         
@@ -139,7 +139,7 @@ export default class EmisionAutoPage {
     async emitirCliente() {
         await this.emisionCliente.nosisInput.fill("20386485446")
         await this.emisionCliente.buscarBtn.click();
-        await expect(this.emisionCliente.emailInput).toHaveValue("cassinanico@gmail.com");
+        await expect(this.emisionCliente.localidadInput).not.toBeEmpty();
         await this.buttons.siguienteBtn.click();
     }
 
@@ -177,6 +177,19 @@ export default class EmisionAutoPage {
         await expect(this.buttons.siguienteBtn).toBeEnabled();
         await this.buttons.siguienteBtn.click();
     }
+
+    async emitirFinal() {
+                    
+                    await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
+                    await this.buttons.emitirBtn.click();
+                    await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
+                    await expect(this.emisionFinal.emisionExitosaText.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: 60000 });
+                    const errorVisible = await this.emisionFinal.errorEmision.isVisible();
+                    if (errorVisible) {
+                        throw new Error("Hubo un problema al emitir la póliza.");
+                    }
+                    await expect(this.emisionFinal.descargaBtn).toBeEnabled({ timeout: 60000 });
+                };
 
     
 

@@ -44,5 +44,4 @@ export default class Companias {
         }
         return locator;
     }
-
 }

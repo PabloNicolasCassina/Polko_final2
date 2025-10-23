@@ -1,5 +1,5 @@
 import { Page, Locator, expect } from "@playwright/test";
-import CommonButtons from "./commonButtons";
+import CommonButtons from "../commonButtons";
 import { get } from "http";
 
 
@@ -7,29 +7,28 @@ export default class CotizacionTabla {
     readonly page: Page;
     readonly buttons: CommonButtons;
     readonly descuentoBar: Locator;
+    readonly descuentoBar15: Locator;
     readonly configAvanzadaBtn: Locator;
     readonly fechaVigencia: Locator;
     readonly sumaAsegurada: Locator;
     readonly usoVehiculo: Locator;
     readonly facturacion: Locator;
-    readonly formaPago: Locator;
+    readonly cantCuotas: Locator;
     readonly ajusteAutomatico: Locator;
     readonly cuotas: Locator;
-    readonly ajusteRiva: Locator;
-    readonly cuotasRiva: Locator;
-    readonly descFedPatCbox: Locator;
-    readonly multFranquiciasCbox: Locator;
     readonly infoBtn: Locator;
     readonly carritoBtn: Locator;
+    readonly sancorRow: Locator;
+    readonly rivaRow: Locator;
+    readonly atmRow: Locator;
+    readonly rusRow: Locator;
     readonly emitirSancor: Locator;
     readonly emitirRiva: Locator;
-    readonly emitirExperta: Locator;
-    readonly emitirFedPat: Locator;
-    readonly emitirZurich: Locator;
     readonly emitirAtm: Locator;
     readonly emitirRus: Locator;
     readonly formaPagoSiguiente: Locator;
     readonly companiasMap: { [key: string]: Locator };
+    readonly companiasRowsMap: { [key: string]: Locator };
     
     
 
@@ -41,36 +40,38 @@ export default class CotizacionTabla {
         this.page = page;
         this.buttons = new CommonButtons(page);
         this.descuentoBar = page.locator('div').filter({ hasText: /^0$/ }).first();
+        this.descuentoBar15 = page.getByText("15%");
         this.configAvanzadaBtn = page.getByText('Configuración avanzada', { exact: true });
-        this.fechaVigencia = page.getByRole('textbox', { name: 'dd/mm/yyyy' });
-        this.sumaAsegurada = page.locator('#number_sumaAseguradaVehiculo');
-        this.usoVehiculo = page.locator('#select_usoVehiculo');
-        this.facturacion = page.locator('#select_facturacion');
-        this.formaPago = page.locator('#select_formaDePago');
-        this.ajusteAutomatico = page.locator('#select_ajusteAutomatico');
-        this.cuotas = page.locator('#select_cuotas');
-        this.ajusteRiva = page.locator('#dependant_ajusteAutomatico');
-        this.cuotasRiva = page.locator('#dependant_cuotas');
-        this.descFedPatCbox = page.getByRole('checkbox', { name: 'Descuento cliente nuevo' });
-        this.multFranquiciasCbox = page.getByRole('checkbox', { name: 'Multiples franquicias' })
+        this.fechaVigencia = page.getByRole('textbox', { name: 'Inicio vigencia' });
+        this.sumaAsegurada = page.getByRole('textbox', { name: 'Suma asegurada vehículo' });
+        this.usoVehiculo = page.getByRole('searchbox', { name: 'Uso del vehículo' });
+        this.facturacion = page.getByRole('searchbox', { name: 'Tipo de facturación' });
+        this.ajusteAutomatico = page.getByRole('searchbox', { name: 'Ajuste automático' });
+        this.cuotas = page.getByRole('searchbox', { name: 'Cantidad de cuotas' });
+        this.cantCuotas = page.getByRole('searchbox', { name: 'Cantidad de cuotas' });
         this.infoBtn = page.locator('#infoIcon_16 circle');
         this.carritoBtn = page.locator('.automotor__cotSuccess__icon');
-        this.emitirSancor = page.locator('#emitirButton_12');
-        this.emitirRiva = page.locator('#emitirButton_MX');
-        this.emitirExperta = page.locator('#emitirButton_942');
-        this.emitirFedPat = page.locator('#emitirButton_CF');
-        this.emitirZurich = page.locator('#emitirButton_37');
-        this.emitirAtm = page.locator('#emitirButton_C2');
-        this.emitirRus = page.locator('#emitirButton_SO');
+        this.sancorRow = page.getByText("17Moto Premium").getByText("$");
+        this.rivaRow = page.getByText("CMAX").getByText("$");
+        this.atmRow = page.getByText('CROBO PREMIUM MOTOS').getByText("$");
+        this.rusRow = page.getByText('RCM-GRCM C/GRUA').getByText("$");
+
+        this.emitirSancor = page.locator('#emitirButton_17');
+        this.emitirRiva = page.locator('#emitirButton_C');
+        this.emitirAtm = page.locator('#emitirButton_');
+        this.emitirRus = page.locator('#emitirButton_RCM-G');
         this.formaPagoSiguiente = page.locator('[id="select_infoDePago.formaDePago"]');
         this.companiasMap = {
             'sancor': this.emitirSancor,
             'rus': this.emitirRus,
-            'zurich': this.emitirZurich,
-            'federacion_patronal': this.emitirFedPat, // Clave para 'fedpat'
-            'experta': this.emitirExperta,
             'rivadavia': this.emitirRiva, // Clave para 'riva'
             'atm': this.emitirAtm
+        };
+        this.companiasRowsMap = {
+            'sancor': this.sancorRow,
+            'rus': this.rusRow,
+            'rivadavia': this.rivaRow, // Clave para 'riva'
+            'atm': this.atmRow
         };
 
 
@@ -99,8 +100,8 @@ export default class CotizacionTabla {
         return locator;
     }
 
-    public async getValorCobertura (): Promise<string | null> {
-        const coberturaLocator = this.page.getByText("12Auto").getByText("$");
+    public async getValorCobertura (compania: string): Promise<string | null> {
+        const coberturaLocator = this.companiasRowsMap[compania.toLowerCase()];
         const coberturaText = await coberturaLocator.textContent();
         if (coberturaText === null) {
             console.log("No se pudo obtener el valor de la cobertura");

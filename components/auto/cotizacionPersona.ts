@@ -1,6 +1,6 @@
 import { Page, Locator, expect } from "@playwright/test";
 import { get } from "http";
-import CommonButtons from "./commonButtons";
+import CommonButtons from "../commonButtons";
 
 
 export default class CotizacionPersona {

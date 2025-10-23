@@ -1,5 +1,5 @@
 import { Page, Locator, expect } from "@playwright/test";
-import CommonButtons from "./commonButtons";
+import CommonButtons from "../commonButtons";
 import { get } from "http";
 
 
