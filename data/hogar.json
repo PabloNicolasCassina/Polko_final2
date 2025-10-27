@@ -1,10 +1,20 @@
 {
-    "hogar": {
-        "tipo": "Casa",
-        "codigo_postal": "5009",
+    "hogares": [
+    {
+        "tipoVivienda": "Casa",
+        "c_postal": "5009",
         "localidad": "Cerro de las Rosas",
-        "tamanio": "Pequeña",
+        "tamanioVivienda": "Pequeña",
         "formaPago": "Débito por CBU",
         "descuento": true
+    },
+    {
+        "tipoVivienda": "Departamento",
+        "c_postal": "5009",
+        "localidad": "Cerro de las Rosas",
+        "tamanioVivienda": "Mediano",
+        "formaPago": "Tarjeta de Crédito",
+        "descuento": false
     }
+    ]
 }

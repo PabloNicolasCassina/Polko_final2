@@ -14,11 +14,10 @@ export default class CotizacionTabla {
     readonly usoVehiculo: Locator;
     readonly facturacion: Locator;
     readonly formaPago: Locator;
-    readonly formaPagoDependant: Locator;
     readonly ajusteAutomatico: Locator;
     readonly cuotas: Locator;
     readonly ajusteRiva: Locator;
-    readonly cuotasDependant: Locator;
+    readonly cuotasRiva: Locator;
     readonly descFedPatCbox: Locator;
     readonly multFranquiciasCbox: Locator;
     readonly infoBtn: Locator;
@@ -27,7 +26,7 @@ export default class CotizacionTabla {
     readonly rivaRow: Locator;
     readonly zurichRow: Locator;
     readonly expertaRow: Locator;
-    readonly fedPatRow: Locator;
+    //readonly fedPatRow: Locator;
     readonly atmRow: Locator;
     readonly rusRow: Locator;
     readonly emitirSancor: Locator;
@@ -41,8 +40,8 @@ export default class CotizacionTabla {
     readonly companiasMap: { [key: string]: Locator };
     readonly companiasRowsMap: { [key: string]: Locator };
     readonly cotizacionErrorText: Locator;
-
-
+    
+    
 
 
 
@@ -59,11 +58,10 @@ export default class CotizacionTabla {
         this.usoVehiculo = page.locator('#select_usoVehiculo');
         this.facturacion = page.locator('#select_facturacion');
         this.formaPago = page.locator('#select_formaDePago');
-        this.formaPagoDependant = page.locator('#dependant_formaDePago');
         this.ajusteAutomatico = page.locator('#select_ajusteAutomatico');
         this.cuotas = page.locator('#select_cuotas');
         this.ajusteRiva = page.locator('#dependant_ajusteAutomatico');
-        this.cuotasDependant = page.locator('#dependant_cuotas');
+        this.cuotasRiva = page.locator('#dependant_cuotas');
         this.descFedPatCbox = page.getByRole('checkbox', { name: 'Descuento cliente nuevo' });
         this.multFranquiciasCbox = page.getByRole('checkbox', { name: 'Multiples franquicias' })
         this.infoBtn = page.locator('#infoIcon_16 circle');
@@ -72,7 +70,7 @@ export default class CotizacionTabla {
         this.rivaRow = page.getByText("MXMEGA MAX").getByText("$");
         this.zurichRow = page.getByText("CG TERCEROS COMPLETO PREMIUM GRANIZO").getByText("$");
         this.expertaRow = page.getByText("942Terceros Completos").getByText("$");
-        this.fedPatRow = page.getByText("CFTerceros Completo Premium").getByText("$");
+        //this.fedPatRow = page.getByText("CF Auto Todo Riesgo").getByText("$");
         this.atmRow = page.getByText("C2C Premium").getByText("$");
         this.rusRow = page.getByText("SOSigma Cero").getByText("$");
 
@@ -97,7 +95,7 @@ export default class CotizacionTabla {
             'sancor': this.sancorRow,
             'rus': this.rusRow,
             'zurich': this.zurichRow,
-            'federacion_patronal': this.fedPatRow, // Clave para 'fedpat'
+            //'federacion_patronal': this.fedPatRow, // Clave para 'fedpat'
             'experta': this.expertaRow,
             'rivadavia': this.rivaRow, // Clave para 'riva'
             'atm': this.atmRow
@@ -131,31 +129,16 @@ export default class CotizacionTabla {
         return locator;
     }
 
-    public async getValorCoberturaTabla(compania: string): Promise<string | null> {
+    public async getValorCobertura (compania: string): Promise<string | null> {
         const coberturaLocator = this.companiasRowsMap[compania.toLowerCase()];
-        const coberturaText = await coberturaLocator.textContent(); // ej: "$131.399Mismo precio por 3 meses"
-
+        const coberturaText = await coberturaLocator.textContent();
         if (coberturaText === null) {
             console.log("No se pudo obtener el valor de la cobertura");
             return null;
         }
-
-        // 1. Quitamos el signo $
-        const valorSucio = coberturaText.replace('$', ''); // ej: "131.399Mismo precio por 3 meses"
-
-        // 2. Usamos RegExp para quedarnos solo con el número del principio
-        // Esto busca dígitos (\d), puntos (.) y comas (,) al inicio (^)
-        const match = valorSucio.match(/^[\d.,]+/);
-
-        if (match && match[0]) {
-            const valorLimpio = match[0]; // ej: "131.399"
-            console.log("Valor cobertura es: " + valorLimpio);
-            return valorLimpio; // Devolvemos el valor limpio
-        }
-
-        // Si no encuentra el número, falla el test con un error claro
-        console.error(`No se pudo extraer el valor numérico de: "${valorSucio}"`);
-        return null; // O podés lanzar un error
+        const valorSinSigno = coberturaText.replace('$', '');
+        console.log("Valor cobertura es" + valorSinSigno);
+        return valorSinSigno;
     }
 
 

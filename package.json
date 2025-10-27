@@ -12,6 +12,10 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.56.0",
-    "@types/node": "^24.7.0"
+    "@types/node": "^24.7.0",
+    "@types/pdf-parse": "^1.1.5"
+  },
+  "dependencies": {
+    "pdf-parse": "^2.4.5"
   }
 }

@@ -2,7 +2,7 @@ import { Page, Locator, expect } from "@playwright/test";
 import { get } from "http";
 
 
-export default class EmisionDetalleAuto {
+export default class EmisionDetalleHogar {
     readonly page: Page;
 
     readonly patenteInput: Locator;
@@ -12,7 +12,6 @@ export default class EmisionDetalleAuto {
     readonly marcaReguladorInput: Locator;
     readonly nroReguladorInput: Locator;
     readonly nuevoCilindroBtn: Locator;
-    readonly fechaVencimiento: Locator;
 
 
 
@@ -26,7 +25,6 @@ export default class EmisionDetalleAuto {
         this.marcaReguladorInput = page.locator('[id="input_vehiculo.gnc.marcaRegulador"]');
         this.nroReguladorInput = page.locator('[id="input_vehiculo.gnc.numeroRegulador"]');
         this.nuevoCilindroBtn = page.getByRole('button', { name: 'Nuevo cilindro' });
-        this.fechaVencimiento = page.getByRole('textbox', { name: 'dd/mm/yyyy' });
 
     }
 

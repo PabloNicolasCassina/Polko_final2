@@ -2,15 +2,14 @@ import { test, expect, type TestInfo, type Page, Download } from "@playwright/te
 import path from 'path'; // Se agrega la importación de 'path'
 import fs from 'fs';     // Se agrega la importación de 'fs'
 import DashboardPage from "../pages/dashboardPage";
-import EmisionAutoPage from "../pages/emisionAutoPage";
-import data from "../data/autos.json";
+import EmisionHogarPage from "../pages/emisionHogarPage";
+import data from "../data/hogar.json";
 import CommonButtons from "../components/commonButtons";
 import Companias from "../components/companias";
 import CotizacionTabla from "../components/auto/cotizacionTabla";
-import { mockUserDataString } from "../helpers/mockUser";
 
 let dashboardPage: DashboardPage;
-let emisionAutoPage: EmisionAutoPage;
+let emisionHogarPage: EmisionHogarPage;
 let commonButtons: CommonButtons;
 let companias: Companias;
 let cotizacionTabla: CotizacionTabla;
@@ -29,13 +28,6 @@ test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ p
         urlPrefix = 'https://api.polko.com.ar';
         dashPrefix = "https://www.polko.com.ar";
     }
-/*
-    await page.route("http://localhost:8080/newGetDatosUsuario?es_master=true*", async route => {
-            await route.fulfill({
-                contentType: 'application/json',
-                body: mockUserDataString,
-            })
-        });*/
 
     // LA NAVEGACIÓN INICIAL SE HA MOVIDO A CADA TEST INDIVIDUAL.
 });
@@ -92,125 +84,84 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 
-const companiasPosibles = [
-    'zurich', 'sancor', 'federacion_patronal',
-    'rivadavia', 'rus', 'experta', 'atm'
-];
 
-function prepararDatosAuto(auto: any, companiaActiva: string): any {
+function prepararDatosHogar(hogar: any): any {
     // 1. Ponemos todas las compañías en 'false'
-    for (const compania of companiasPosibles) {
-        if (auto.hasOwnProperty(compania)) {
-            auto[compania] = false;
-        }
-    }
 
-    // 2. Ponemos la compañía deseada en 'true'
-    if (auto.hasOwnProperty(companiaActiva)) {
-        auto[companiaActiva] = true;
-    } else {
-        // Es bueno tener una verificación por si el nombre de la compañía es incorrecto
-        throw new Error(`La compañía "${companiaActiva}" no es una clave válida en el objeto de datos.`);
-    }
-
-    return auto;
+    return hogar;
 }
 
 //const companiasParaProbar = ['sancor', 'zurich', 'atm'];
 
 // 2. Bucle externo: recorre cada auto del JSON
-for (const auto of data.autos) {
+for (const hogar of data.hogares) {
 
     // 3. Bucle interno: recorre cada compañía que quieres probar
-    for (const compania of companiasPosibles) {
 
-        // 4. Crea un test para CADA combinación de auto y compañía
-        test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania}`, async ({ page }, testInfo) => {
+        // 4. Crea un test para CADA combinación de hogar y compañía
+        test(`Cotizar ${hogar.tipoVivienda} ${hogar.tamanioVivienda} ${hogar.localidad}`, async ({ page }) => {
             test.setTimeout(1200000);
             dashboardPage = new DashboardPage(page);
-            emisionAutoPage = new EmisionAutoPage(page);
+            emisionHogarPage = new EmisionHogarPage(page);
             commonButtons = new CommonButtons(page);
             companias = new Companias(page);
             cotizacionTabla = new CotizacionTabla(page);
 
             // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
 
-            page.on('request', async (request) => { // La función debe ser async
-                
-                // 1. Verificamos si es la llamada a 'sse' y si es un POST
-                if (request.url().includes('/sse') && request.method() === 'POST') {
-                    
-                    // 2. ¡Lo adjuntamos al reporte!
-                    await testInfo.attach('SSE POST Payload', {
-                        body: request.postData() || 'Payload no encontrado (null)', // Manejamos el 'null'
-                        contentType: 'application/json', // Asumiendo que es JSON
-                    });
-                }
-            });
 
-
-            await page.goto("http://localhost:3000/u/cotizar/automotor");
+            await page.goto("http://localhost:3000/u/cotizar/hogar");
             await commonButtons.siguienteBtn.waitFor();
-            const valorTabla = await cotizar(test, auto, compania);
-            await emitir(test, auto, compania, valorTabla);
+            await cotizar(test, hogar);
+            //await emitir(test, hogar, compania);
 
             // 6. Llama a tus métodos del Page Object con los datos ya preparados
 
         });
-    }
 }
 
-async function cotizar(test: any, auto: any, compania: string) {
-    const datosDelTest = prepararDatosAuto({ ...auto }, compania);
-    let valorTabla: string | null = null;
-    await test.step(`📝Flujo cotización póliza para: ${compania}`, async () => {
-        await test.step("1- Seleccionar Compañía", async () => {
-            await companias.getCompaniaLogo(compania).click();
-            await commonButtons.aceptarSelector.click();
-        });
+async function cotizar(test: any, hogar: any) {
+    const datosDelTest = prepararDatosHogar({ ...hogar });
+    await test.step(`📝Flujo cotización póliza para: ${hogar}`, async () => {
 
-        await test.step("2- Completar datos del auto", async () => {
-            await emisionAutoPage.seleccionarAuto(datosDelTest, compania);
+        await test.step("1- Completar datos del Hogar", async () => {
+            await emisionHogarPage.seleccionarHogar(datosDelTest);
         });
-        await test.step("3- Completar datos del asegurado", async () => {
-            await emisionAutoPage.seleccionarPersona(datosDelTest);
-        });
-        await test.step("4- Flujo tabla de cotización", async () => {
-            await emisionAutoPage.tablaCotizacion();
-            valorTabla = await cotizacionTabla.getValorCoberturaTabla(compania);
+        
+/*
+        await test.step("2- Flujo tabla de cotización", async () => {
+            await emisionHogarPage.tablaCotizacion();
+            await cotizacionTabla.getValorCobertura(compania);
             await cotizacionTabla.getCompaniaBtn(compania).click();
-        });
+        });*/
 
 
 
 
     });
-
-    return valorTabla;
 }
-
-async function emitir(test: any, auto: any, compania: string, valorTabla: string | null) {
+/*
+async function emitir(test: any, auto: any, compania: string) {
     const datosDelTest = prepararDatosAuto({ ...auto }, compania);
     await test.step(`📝Flujo emisión póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar forma de pago", async () => {
-            await emisionAutoPage.emitirFormaPago(datosDelTest);
+            await emisionHogarPage.emitirFormaPago(datosDelTest);
         });
         await test.step("2- Completar datos del cliente", async () => {
-            await emisionAutoPage.emitirCliente();
+            await emisionHogarPage.emitirCliente();
         });
         await test.step("3- Completar detalle del auto", async () => {
-            await emisionAutoPage.emitirDetalleAuto(datosDelTest);
+            await emisionHogarPage.emitirDetalleAuto();
         });
         await test.step("4- Completar inspección", async () => {
-            await emisionAutoPage.emitirInspeccion();
+            await emisionHogarPage.emitirInspeccion();
         });
         await test.step("5- Emisión de póliza", async () => {
             
-            await emisionAutoPage.emitirFinal(compania, valorTabla);
-            
+            await emisionHogarPage.emitirFinal();
         });
-        await test.step("6- Descargar y validar póliza", async () => {
-            await descargarYAdjuntarPoliza(emisionAutoPage.page, test.info());
+        await test.step("6- Descargar y adjuntar póliza", async () => {
+            await descargarYAdjuntarPoliza(emisionHogarPage.page, test.info());
         });
 
     });
@@ -220,35 +171,63 @@ async function emitir(test: any, auto: any, compania: string, valorTabla: string
 async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
     console.log("Iniciando descarga de póliza...");
 
-    const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
-    const errorPromise = emisionAutoPage.emisionFinal.errorDocumentacion
-        .waitFor({ state: 'visible', timeout: 60000 }); 
-    await emisionAutoPage.emisionFinal.descargaBtn.click();
+    // 1. Prepara la Promesa A: la descarga
+    const downloadPromise = page.waitForEvent('download', { timeout: 60000 }); // Damos 60s para la descarga
+
+    // 2. Prepara la Promesa B: la aparición del error
+    // (Asegúrate que 'emisionMotoPage.emisionFinal.errorDocumentacion' sea el selector
+    // correcto para el toast/popup de error "Error al descargar...")
+    const errorPromise = emisionHogarPage.emisionFinal.errorDocumentacion
+        .waitFor({ state: 'visible', timeout: 60000 }); // El error debe aparecer rápido (10s)
+
+    // 3. Haz clic en el botón de descarga
+    await emisionHogarPage.emisionFinal.descargaBtn.click();
     console.log("Clic en Descargar. Esperando resultado...");
 
+    // 4. Espera a ver qué promesa se resuelve primero
     let download: Download;
     try {
-        const firstResult = await Promise.race([ downloadPromise, errorPromise ]);
+        const firstResult = await Promise.race([
+            downloadPromise,
+            errorPromise
+        ]);
+
+        // 5. Comprueba qué fue lo que pasó
+        // Si 'firstResult' tiene 'saveAs', es una Descarga (Promesa A ganó)
         if (firstResult && typeof (firstResult as Download).saveAs === 'function') {
+            // ¡Éxito! Es la descarga.
             console.log("¡Descarga detectada!");
             download = firstResult as Download;
         } else {
+            // ¡Error! El error apareció primero (Promesa B ganó)
+            console.error("¡Error de documentación detectado!");
+            // ESTO ES LO QUE TERMINA EL TEST Y AVISA
             throw new Error("Apareció el error 'Error al descargar la documentación' en lugar de la descarga.");
         }
+
     } catch (e) {
-        console.error("Falló la carrera de promesas:", e);
-        throw e;
+        // Si Promise.race falla (ej. por timeout de ambas promesas), lo relanzamos
+        console.error("Falló la carrera de promesas (ni descarga ni error aparecieron a tiempo):", e);
+        throw e; // Falla el test
     }
 
+
+    // 4. Define tu directorio de destino de forma robusta
     const downloadDir = path.join(__dirname, '..', 'resultados-polizas');
+
+    // 5. Asegúrate de que el directorio exista, si no, lo crea
     fs.mkdirSync(downloadDir, { recursive: true });
+
+    // 6. Combina el directorio con el nombre de archivo sugerido para crear la ruta final
     const savePath = path.join(downloadDir, download.suggestedFilename());
+
+    // 7. Guarda el archivo en la ruta especificada
     await download.saveAs(savePath);
     console.log(`Póliza guardada en: ${savePath}`);
 
-    // Solo adjunta, no valida contenido
+    // 8. Adjunta el archivo recién guardado al reporte de Playwright
     await testInfo.attach('Poliza-Descargada', {
         path: savePath,
-        contentType: 'application/pdf', 
+        contentType: 'application/pdf', // Puedes cambiarlo si es otro tipo de archivo
     });
-}
+}*/

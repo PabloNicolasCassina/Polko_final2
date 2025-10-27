@@ -24,7 +24,7 @@ export default class EmisionAutoPage {
     readonly emisionFormaPago: EmisionFormaPago;
     readonly emisionDetalleAuto: EmisionDetalleAuto;
     readonly emisionInspeccion: EmisionInspeccion;
-    readonly emisionFinal: emisionFinal;
+    readonly emisionFinal: EmisionFinal;
 
 
 
@@ -109,11 +109,13 @@ export default class EmisionAutoPage {
         if (errorVisible) {
             throw new Error("Hubo un problema al cotizar la póliza.");
         }
+        /*
         await this.cotizacionTabla.configAvanzadaBtn.click();
         await this.cotizacionTabla.fechaVigencia.fill(this.cotizacionTabla.setVechaVigencia());
         await this.cotizacionTabla.descuentoBar15.click();
         await this.buttons.aplicarCambiosBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
+        */
 
     }
 
@@ -124,10 +126,10 @@ export default class EmisionAutoPage {
         const vencimientoAnio = "25";
         await this.emisionFormaPago.formaPagoSelect.click();
         await this.emisionFormaPago.getFormaPago(auto).click();
-        if (auto.formaPago === "Débito por CBU" || auto.formaPagoZurich === "Débito por CBU") {
+        if (auto.formaPago === "Débito por CBU") {
             await this.emisionFormaPago.CBU.fill(nroCBU);
             await this.buttons.siguienteBtn.click();
-        } else if (auto.formaPago === "Tarjeta de Crédito" || auto.formaPagoZurich === "Tarjeta de Crédito") {
+        } else if (auto.formaPago === "Tarjeta de Crédito") {
             await this.emisionFormaPago.marcaTarjeta.click();
             await this.page.getByRole('option', { name: 'Visa' }).click();
             await this.emisionFormaPago.nroTarjeta.fill(nroTarjeta);
@@ -147,10 +149,11 @@ export default class EmisionAutoPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirDetalleAuto() {
+    async emitirDetalleAuto(auto: any) {
         const patente = this.emisionDetalleAuto.generarPatenteAleatoriaAuto();
         const nroMotor = this.emisionDetalleAuto.generarNroMotorAleatorio();
         const nroChasis = this.emisionDetalleAuto.generarNroChasisAleatorio();
+        const fechaVencimiento = "30122026";
 
         await expect(this.page.getByText("Datos del vehículo")).toBeVisible({ timeout: 30000 });
         await expect(this.emisionDetalleAuto.patenteInput).toBeVisible({ timeout: 30000 }); // Espera hasta 30s si es necesario
@@ -158,6 +161,9 @@ export default class EmisionAutoPage {
         await this.emisionDetalleAuto.nroMotorInput.fill(nroMotor);
         await this.emisionDetalleAuto.nroChasisInput.fill(nroChasis);
         await this.emisionDetalleAuto.descripcionGncInput.fill("GNCIP");
+        if (auto.rivadavia){
+            await this.emisionDetalleAuto.fechaVencimiento.fill(fechaVencimiento);
+        }
         await this.emisionDetalleAuto.marcaReguladorInput.fill("ACME");
         await this.emisionDetalleAuto.nroReguladorInput.fill("123456");
         await this.emisionDetalleAuto.nuevoCilindroBtn.click();
@@ -182,9 +188,12 @@ export default class EmisionAutoPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirFinal() {
+    async emitirFinal(compania: string, valorTabla: string | null) {
 
+        const valorFinal = await this.emisionFinal.getValorCoberturaFinal();
+        await expect(valorTabla).toEqual(valorFinal);
         await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
+        await expect(valorTabla).toEqual(valorFinal);
         await this.buttons.emitirBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
         await expect(this.emisionFinal.emisionExitosaText.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: 60000 });
