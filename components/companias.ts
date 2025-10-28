@@ -11,6 +11,7 @@ export default class Companias {
     readonly expertaLogo: Locator;
     readonly rivaLogo: Locator;
     readonly atmLogo: Locator;
+    readonly triunfoLogo: Locator;
     readonly logosMap: { [key: string]: Locator };
 
 
@@ -25,6 +26,7 @@ export default class Companias {
         this.expertaLogo = page.locator('#csm__logo-6');
         this.rivaLogo = page.locator('#csm__logo-7');
         this.atmLogo = page.locator('#csm__logo-8');
+        this.triunfoLogo = page.locator('#csm__logo-9');
         this.logosMap = {
             'sancor': this.sancorLogo,
             'rus': this.rusLogo,
@@ -32,7 +34,8 @@ export default class Companias {
             'federacion_patronal': this.fedpatLogo, // Clave para 'fedpat'
             'experta': this.expertaLogo,
             'rivadavia': this.rivaLogo, // Clave para 'riva'
-            'atm': this.atmLogo
+            'atm': this.atmLogo,
+            'triunfo': this.triunfoLogo
         };
     }
 

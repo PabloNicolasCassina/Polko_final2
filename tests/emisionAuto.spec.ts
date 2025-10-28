@@ -4,6 +4,7 @@ import fs from 'fs';     // Se agrega la importación de 'fs'
 import DashboardPage from "../pages/dashboardPage";
 import EmisionAutoPage from "../pages/emisionAutoPage";
 import data from "../data/autos.json";
+import configs from "../data/configsAvanzadas.json";
 import CommonButtons from "../components/commonButtons";
 import Companias from "../components/companias";
 import CotizacionTabla from "../components/auto/cotizacionTabla";
@@ -29,13 +30,13 @@ test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ p
         urlPrefix = 'https://api.polko.com.ar';
         dashPrefix = "https://www.polko.com.ar";
     }
-/*
+
     await page.route("http://localhost:8080/newGetDatosUsuario?es_master=true*", async route => {
             await route.fulfill({
                 contentType: 'application/json',
                 body: mockUserDataString,
             })
-        });*/
+        });
 
     // LA NAVEGACIÓN INICIAL SE HA MOVIDO A CADA TEST INDIVIDUAL.
 });
@@ -94,7 +95,7 @@ test.afterEach(async ({ page }, testInfo) => {
 
 const companiasPosibles = [
     'zurich', 'sancor', 'federacion_patronal',
-    'rivadavia', 'rus', 'experta', 'atm'
+    'rivadavia', 'rus', 'experta', 'atm', 'triunfo'
 ];
 
 function prepararDatosAuto(auto: any, companiaActiva: string): any {
@@ -161,7 +162,9 @@ for (const auto of data.autos) {
 }
 
 async function cotizar(test: any, auto: any, compania: string) {
-    const datosDelTest = prepararDatosAuto({ ...auto }, compania);
+    const configEspecifica = configs.autos[compania as keyof typeof configs.autos];
+    const datosCombinados = { ...auto, ...configEspecifica };
+    const datosDelTest = prepararDatosAuto(datosCombinados, compania);
     let valorTabla: string | null = null;
     await test.step(`📝Flujo cotización póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar Compañía", async () => {
@@ -176,7 +179,7 @@ async function cotizar(test: any, auto: any, compania: string) {
             await emisionAutoPage.seleccionarPersona(datosDelTest);
         });
         await test.step("4- Flujo tabla de cotización", async () => {
-            await emisionAutoPage.tablaCotizacion();
+            await emisionAutoPage.tablaCotizacion(datosDelTest);
             valorTabla = await cotizacionTabla.getValorCoberturaTabla(compania);
             await cotizacionTabla.getCompaniaBtn(compania).click();
         });

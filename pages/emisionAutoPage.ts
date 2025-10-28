@@ -103,19 +103,22 @@ export default class EmisionAutoPage {
 
     }
 
-    async tablaCotizacion() {
+    async tablaCotizacion(auto: any) {
         await expect(this.cotizacionTabla.configAvanzadaBtn.or(this.cotizacionTabla.cotizacionErrorText)).toBeVisible({ timeout: 60000 });
         const errorVisible = await this.cotizacionTabla.cotizacionErrorText.isVisible();
         if (errorVisible) {
             throw new Error("Hubo un problema al cotizar la póliza.");
         }
-        /*
         await this.cotizacionTabla.configAvanzadaBtn.click();
-        await this.cotizacionTabla.fechaVigencia.fill(this.cotizacionTabla.setVechaVigencia());
-        await this.cotizacionTabla.descuentoBar15.click();
+        if (auto.rivadavia) {
+            await this.cotizacionTabla.fillRivadavia(auto);
+        }
+        if (auto.triunfo) {
+            await this.cotizacionTabla.fillTriunfo(auto);
+        }
         await this.buttons.aplicarCambiosBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
-        */
+
 
     }
 
@@ -160,8 +163,9 @@ export default class EmisionAutoPage {
         await this.emisionDetalleAuto.patenteInput.fill(patente);
         await this.emisionDetalleAuto.nroMotorInput.fill(nroMotor);
         await this.emisionDetalleAuto.nroChasisInput.fill(nroChasis);
+        if (auto.gnc) {
         await this.emisionDetalleAuto.descripcionGncInput.fill("GNCIP");
-        if (auto.rivadavia){
+        if (auto.rivadavia) {
             await this.emisionDetalleAuto.fechaVencimiento.fill(fechaVencimiento);
         }
         await this.emisionDetalleAuto.marcaReguladorInput.fill("ACME");
@@ -173,6 +177,7 @@ export default class EmisionAutoPage {
             await this.emisionDetalleAuto.getMarcaCilindroLocator(i.toString()).fill(marcaCilindro);
             await this.emisionDetalleAuto.getNumeroCilindroLocator(i.toString()).fill(numeroCilindro);
         }
+    }
         await this.buttons.siguienteBtn.click();
 
 

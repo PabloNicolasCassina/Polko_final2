@@ -1,0 +1,40 @@
+{
+    "autos": {
+        "rivadavia": {
+            "ajusteAutomatico": "Aplicar 10%",
+            "tipoFacturacion": "Trimestral",
+            "cantCuotas": "3",
+            "usoVehiculo": "Particular"
+        },
+        "zurich": {
+            "formaPago": "Medios Electrónicos"
+        },
+        "rus": {
+            "ajusteAutomatico": "Aplicar 20%",
+            "usoDelVehiculo": "Particular"
+        },
+        "triunfo":{
+            "usoVehiculo": "Particular",
+            "tipoFacturacion": "Mensual",
+            "formaPago": "Medios electrónicos",
+            "cantCuotas":"1"
+        },
+        "federacion_patronal": {
+            "tipoFacturacion": "Mensual"
+        },
+        "atm":
+        {
+            "formaPago": "Débito por CBU",
+            "tipoFacturacion": "Mensual",
+            "cantCuotas": "1",
+            "ajusteAutomatico": "10%"
+
+        },
+        "experta":
+        {
+            "usoVehiculo": "Particular",
+            "formaPago": "Medios Electrónicos"
+        }
+
+    }
+}

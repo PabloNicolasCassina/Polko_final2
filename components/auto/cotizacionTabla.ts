@@ -6,7 +6,7 @@ import { get } from "http";
 export default class CotizacionTabla {
     readonly page: Page;
     readonly buttons: CommonButtons;
-    readonly descuentoBar: Locator;
+    readonly descuentoPointer: Locator;
     readonly descuentoBar15: Locator;
     readonly configAvanzadaBtn: Locator;
     readonly fechaVigencia: Locator;
@@ -30,6 +30,7 @@ export default class CotizacionTabla {
     readonly fedPatRow: Locator;
     readonly atmRow: Locator;
     readonly rusRow: Locator;
+    readonly triunfoRow: Locator;
     readonly emitirSancor: Locator;
     readonly emitirRiva: Locator;
     readonly emitirExperta: Locator;
@@ -37,6 +38,7 @@ export default class CotizacionTabla {
     readonly emitirZurich: Locator;
     readonly emitirAtm: Locator;
     readonly emitirRus: Locator;
+    readonly emitirTriunfo: Locator;
     readonly formaPagoSiguiente: Locator;
     readonly companiasMap: { [key: string]: Locator };
     readonly companiasRowsMap: { [key: string]: Locator };
@@ -51,7 +53,7 @@ export default class CotizacionTabla {
     constructor(page: Page) {
         this.page = page;
         this.buttons = new CommonButtons(page);
-        this.descuentoBar = page.locator('div').filter({ hasText: /^0$/ }).first();
+        this.descuentoPointer = page.getByRole('slider');
         this.descuentoBar15 = page.getByText("15%");
         this.configAvanzadaBtn = page.getByText('Configuración avanzada', { exact: true });
         this.fechaVigencia = page.getByRole('textbox', { name: 'dd/mm/yyyy' });
@@ -75,6 +77,7 @@ export default class CotizacionTabla {
         this.fedPatRow = page.getByText("CFTerceros Completo Premium").getByText("$");
         this.atmRow = page.getByText("C2C Premium").getByText("$");
         this.rusRow = page.getByText("SOSigma Cero").getByText("$");
+        this.triunfoRow = page.getByText('C2C2').getByText("$");
 
         this.emitirSancor = page.locator('#emitirButton_12');
         this.emitirRiva = page.locator('#emitirButton_MX');
@@ -83,6 +86,7 @@ export default class CotizacionTabla {
         this.emitirZurich = page.locator('#emitirButton_37');
         this.emitirAtm = page.locator('#emitirButton_C2');
         this.emitirRus = page.locator('#emitirButton_SO');
+        this.emitirTriunfo = page.locator('#emitirButton_C2');
         this.formaPagoSiguiente = page.locator('[id="select_infoDePago.formaDePago"]');
         this.companiasMap = {
             'sancor': this.emitirSancor,
@@ -91,7 +95,8 @@ export default class CotizacionTabla {
             'federacion_patronal': this.emitirFedPat, // Clave para 'fedpat'
             'experta': this.emitirExperta,
             'rivadavia': this.emitirRiva, // Clave para 'riva'
-            'atm': this.emitirAtm
+            'atm': this.emitirAtm,
+            'triunfo': this.emitirTriunfo
         };
         this.companiasRowsMap = {
             'sancor': this.sancorRow,
@@ -100,7 +105,8 @@ export default class CotizacionTabla {
             'federacion_patronal': this.fedPatRow, // Clave para 'fedpat'
             'experta': this.expertaRow,
             'rivadavia': this.rivaRow, // Clave para 'riva'
-            'atm': this.atmRow
+            'atm': this.atmRow,
+            'triunfo': this.triunfoRow
         };
 
         this.cotizacionErrorText = page.locator('.automotor__cotSuccess__errorIcon');
@@ -158,6 +164,41 @@ export default class CotizacionTabla {
         return null; // O podés lanzar un error
     }
 
+    public async aplicarDescuento15Porciento(): Promise<void> {
+        await this.descuentoBar15.click();
+        await this.descuentoPointer.click();
+    }
+
+    public getOptionLocator(option: string): Locator {
+        return this.page.getByRole("option", { name: option, exact: true });
+    }
+    
+    public async fillRivadavia(Auto: any)
+    {
+        await this.fechaVigencia.fill(this.setVechaVigencia());
+        await this.aplicarDescuento15Porciento();
+        await this.ajusteRiva.click();
+        await this.getOptionLocator(Auto.ajusteAutomatico).click();
+        await this.facturacion.click();
+        await this.getOptionLocator(Auto.tipoFacturacion).click();
+        await this.cuotasDependant.click();
+        await this.getOptionLocator(Auto.cantCuotas).click();
+        await this.usoVehiculo.click();
+        await this.getOptionLocator(Auto.usoVehiculo).click();
+    }
+
+    public async fillTriunfo(Auto: any)
+    {
+        await this.aplicarDescuento15Porciento();
+        await this.usoVehiculo.click();
+        await this.getOptionLocator(Auto.usoVehiculo).click();
+        await this.facturacion.click();
+        await this.getOptionLocator(Auto.tipoFacturacion).click();
+        await this.cuotasDependant.click();
+        await this.getOptionLocator(Auto.cantCuotas).click();
+        await this.formaPagoDependant.click();
+        await this.getOptionLocator(Auto.formaPago).click();
+    }
 
 
 }
