@@ -9,6 +9,8 @@ import CommonButtons from "../components/commonButtons";
 import Companias from "../components/companias";
 import CotizacionTabla from "../components/auto/cotizacionTabla";
 import { mockUserDataString } from "../helpers/mockUser";
+import { companyBillingConfigs } from "../data/tiposFacturacion";
+import { buildAutoTestData } from "../helpers/testDataBuilder"; // <-- Importa la nueva función
 
 let dashboardPage: DashboardPage;
 let emisionAutoPage: EmisionAutoPage;
@@ -32,64 +34,64 @@ test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ p
     }
 
     await page.route("http://localhost:8080/newGetDatosUsuario?es_master=true*", async route => {
-            await route.fulfill({
-                contentType: 'application/json',
-                body: mockUserDataString,
-            })
-        });
+        await route.fulfill({
+            contentType: 'application/json',
+            body: mockUserDataString,
+        })
+    });
 
     // LA NAVEGACIÓN INICIAL SE HA MOVIDO A CADA TEST INDIVIDUAL.
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-  
-  // 1. Revisa si el test falló o se agotó el tiempo de espera
-  if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
-    
-    console.log('El test falló, intentando adjuntar logs del backend...');
-    
-    try {
-      // 2. Define la ruta a tu archivo de log del backend
-      const logFilePath = "C:\\Polko\\microservice_products\\server.log"
 
-      // 3. Lee el contenido del archivo de log
-      const logData = fs.readFileSync(logFilePath, 'utf8');
-      
-      // 4. (Opcional) Quedarse solo con las últimas líneas
-      const logLines = logData.split('\n');
-      const lastLines = logLines.slice(-50).join('\n'); // Adjunta las últimas 50 líneas
+    // 1. Revisa si el test falló o se agotó el tiempo de espera
+    if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
 
-      // 5. Adjunta el texto del log al reporte de Playwright
-      await testInfo.attach('backend-log-on-failure', {
-        body: `--- Últimas 50 líneas de server.log ---\n\n${lastLines}`,
-        contentType: 'text/plain',
-      });
-      
-      console.log('Log del backend adjuntado exitosamente.');
+        console.log('El test falló, intentando adjuntar logs del backend...');
 
-    } catch (logError) {
-      // Maneja el caso donde el archivo de log no existe o no se puede leer
-      console.warn(`No se pudo leer o adjuntar el log del backend.`);
+        try {
+            // 2. Define la ruta a tu archivo de log del backend
+            const logFilePath = "C:\\Polko\\microservice_products\\server.log"
 
-      // --- CORRECCIÓN ---
-      let errorMessage = 'Error desconocido al leer el log.';
-      
-      if (logError instanceof Error) {
-        // Ahora TypeScript sabe que logError es un Error y tiene .message
-        errorMessage = logError.message;
-        console.warn(logError.message); 
-      } else {
-        // Si no es un Error, al menos reporta lo que sea que se haya capturado
-        console.warn(logError);
-        errorMessage = String(logError);
-      }
-      
-      await testInfo.attach('backend-log-error', {
-          body: `No se pudo leer el archivo de log del backend: ${errorMessage}`,
-          contentType: 'text/plain',
-      });
+            // 3. Lee el contenido del archivo de log
+            const logData = fs.readFileSync(logFilePath, 'utf8');
+
+            // 4. (Opcional) Quedarse solo con las últimas líneas
+            const logLines = logData.split('\n');
+            const lastLines = logLines.slice(-50).join('\n'); // Adjunta las últimas 50 líneas
+
+            // 5. Adjunta el texto del log al reporte de Playwright
+            await testInfo.attach('backend-log-on-failure', {
+                body: `--- Últimas 50 líneas de server.log ---\n\n${lastLines}`,
+                contentType: 'text/plain',
+            });
+
+            console.log('Log del backend adjuntado exitosamente.');
+
+        } catch (logError) {
+            // Maneja el caso donde el archivo de log no existe o no se puede leer
+            console.warn(`No se pudo leer o adjuntar el log del backend.`);
+
+            // --- CORRECCIÓN ---
+            let errorMessage = 'Error desconocido al leer el log.';
+
+            if (logError instanceof Error) {
+                // Ahora TypeScript sabe que logError es un Error y tiene .message
+                errorMessage = logError.message;
+                console.warn(logError.message);
+            } else {
+                // Si no es un Error, al menos reporta lo que sea que se haya capturado
+                console.warn(logError);
+                errorMessage = String(logError);
+            }
+
+            await testInfo.attach('backend-log-error', {
+                body: `No se pudo leer el archivo de log del backend: ${errorMessage}`,
+                contentType: 'text/plain',
+            });
+        }
     }
-  }
 });
 
 
@@ -125,45 +127,83 @@ for (const auto of data.autos) {
     // 3. Bucle interno: recorre cada compañía que quieres probar
     for (const compania of companiasPosibles) {
 
-        // 4. Crea un test para CADA combinación de auto y compañía
-        test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania}`, async ({ page }, testInfo) => {
-            test.setTimeout(1200000);
-            dashboardPage = new DashboardPage(page);
-            emisionAutoPage = new EmisionAutoPage(page);
-            commonButtons = new CommonButtons(page);
-            companias = new Companias(page);
-            cotizacionTabla = new CotizacionTabla(page);
+        for (const tieneGNC of [true, false]) {
 
-            // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
+            const facturacionCompania = companyBillingConfigs[compania];
+            
+            if (!facturacionCompania) {
+                //throw new Error(`No se encontraron opciones de facturación para la compañía: ${compania}`);
+                continue; // Si no hay configuraciones, salta a la siguiente compañía
+            }
 
-            page.on('request', async (request) => { // La función debe ser async
-                
-                // 1. Verificamos si es la llamada a 'sse' y si es un POST
-                if (request.url().includes('/sse') && request.method() === 'POST') {
-                    
-                    // 2. ¡Lo adjuntamos al reporte!
-                    await testInfo.attach('SSE POST Payload', {
-                        body: request.postData() || 'Payload no encontrado (null)', // Manejamos el 'null'
-                        contentType: 'application/json', // Asumiendo que es JSON
-                    });
+            for (const tipoFacturacion of facturacionCompania) {
+                for (const metodoPago of tipoFacturacion.validPaymentCombinations) {
+                    for (const cuota of tipoFacturacion.validInstallments) {
+                        let paymentDesc = metodoPago.primary;
+                        if (metodoPago.secondary) {
+                            paymentDesc += ` > ${metodoPago.secondary}`; // Indica la sub-selección
+                        }
+                        // 4. Crea un test para CADA combinación de auto y compañía
+                        test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania} ${tieneGNC ? 'con GNC' : 'sin GNC'} - Fact: ${tipoFacturacion.type} - Pago: ${paymentDesc} - Cuotas: ${cuota} - Metodo de pago: ${paymentDesc}`, async ({ page }, testInfo) => {
+                            test.setTimeout(1200000);
+                            const datosAutoParaTest = buildAutoTestData({
+                                autoBase: auto, // El objeto original del bucle de autos
+                                compania: compania,
+                                tieneGNC: tieneGNC,
+                                billingConfig: tipoFacturacion, // El objeto config del bucle de facturación
+                                paymentCombo: metodoPago, // El objeto paymentCombo del bucle de pagos
+                                installment: cuota // La cuota del bucle de cuotas
+                            });
+                            console.log('Valor de tieneGNC para este test:', tieneGNC);
+                            console.log('Valor de datosAutoParaTest.gnc:', datosAutoParaTest.gnc);
+                            dashboardPage = new DashboardPage(page);
+                            emisionAutoPage = new EmisionAutoPage(page);
+                            commonButtons = new CommonButtons(page);
+                            companias = new Companias(page);
+                            cotizacionTabla = new CotizacionTabla(page);
+
+                            // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
+
+                            page.on('request', async (request) => { // La función debe ser async
+
+                                // 1. Verificamos si es la llamada a 'sse' y si es un POST
+                                if (request.url().includes('/sse') && request.method() === 'POST') {
+
+                                    // 2. ¡Lo adjuntamos al reporte!
+                                    await testInfo.attach('SSE POST Payload', {
+                                        body: request.postData() || 'Payload no encontrado (null)', // Manejamos el 'null'
+                                        contentType: 'application/json', // Asumiendo que es JSON
+                                    });
+                                }
+                            });
+
+
+                            await page.goto("http://localhost:3000/u/cotizar/automotor");
+                            await commonButtons.siguienteBtn.waitFor();
+                            const valorTabla = await cotizar(test, datosAutoParaTest, compania);
+                            await emitir(test, datosAutoParaTest, compania, valorTabla);
+
+                            // 6. Llama a tus métodos del Page Object con los datos ya preparados
+
+                        });
+                    }
+
                 }
-            });
 
 
-            await page.goto("http://localhost:3000/u/cotizar/automotor");
-            await commonButtons.siguienteBtn.waitFor();
-            const valorTabla = await cotizar(test, auto, compania);
-            await emitir(test, auto, compania, valorTabla);
+            }
 
-            // 6. Llama a tus métodos del Page Object con los datos ya preparados
 
-        });
+
+        }
+
+
     }
 }
 
 async function cotizar(test: any, auto: any, compania: string) {
-    const configEspecifica = configs.autos[compania as keyof typeof configs.autos];
-    const datosCombinados = { ...auto, ...configEspecifica };
+    const configEspecificaDefault = configs.autos[compania as keyof typeof configs.autos] || {};
+    const datosCombinados = { ...configEspecificaDefault, ...auto };
     const datosDelTest = prepararDatosAuto(datosCombinados, compania);
     let valorTabla: string | null = null;
     await test.step(`📝Flujo cotización póliza para: ${compania}`, async () => {
@@ -192,8 +232,7 @@ async function cotizar(test: any, auto: any, compania: string) {
     return valorTabla;
 }
 
-async function emitir(test: any, auto: any, compania: string, valorTabla: string | null) {
-    const datosDelTest = prepararDatosAuto({ ...auto }, compania);
+async function emitir(test: any, datosDelTest: any, compania: string, valorTabla: string | null) {
     await test.step(`📝Flujo emisión póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar forma de pago", async () => {
             await emisionAutoPage.emitirFormaPago(datosDelTest);
@@ -208,9 +247,9 @@ async function emitir(test: any, auto: any, compania: string, valorTabla: string
             await emisionAutoPage.emitirInspeccion();
         });
         await test.step("5- Emisión de póliza", async () => {
-            
+
             await emisionAutoPage.emitirFinal(compania, valorTabla);
-            
+
         });
         await test.step("6- Descargar y validar póliza", async () => {
             await descargarYAdjuntarPoliza(emisionAutoPage.page, test.info());
@@ -225,13 +264,13 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
 
     const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
     const errorPromise = emisionAutoPage.emisionFinal.errorDocumentacion
-        .waitFor({ state: 'visible', timeout: 60000 }); 
+        .waitFor({ state: 'visible', timeout: 60000 });
     await emisionAutoPage.emisionFinal.descargaBtn.click();
     console.log("Clic en Descargar. Esperando resultado...");
 
     let download: Download;
     try {
-        const firstResult = await Promise.race([ downloadPromise, errorPromise ]);
+        const firstResult = await Promise.race([downloadPromise, errorPromise]);
         if (firstResult && typeof (firstResult as Download).saveAs === 'function') {
             console.log("¡Descarga detectada!");
             download = firstResult as Download;
@@ -252,6 +291,6 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
     // Solo adjunta, no valida contenido
     await testInfo.attach('Poliza-Descargada', {
         path: savePath,
-        contentType: 'application/pdf', 
+        contentType: 'application/pdf',
     });
 }

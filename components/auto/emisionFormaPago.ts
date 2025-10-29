@@ -19,7 +19,7 @@ export default class EmisionFormaPago {
         this.page = page;
         this.formaPagoSelect = page.locator('[id="select_infoDePago.formaDePago"]');
         this.CBU = page.locator('[id="input_infoDePago.numeroCbu"]');
-        this.marcaTarjeta = page.locator('[id="input_infoDePago.marcaTarjeta"]');
+        this.marcaTarjeta = page.locator('[id="input_infoDePago.marcaTarjeta"]').or(page.locator('[id="select_infoDePago.marcaTarjeta"]'));
         this.marcaTarjetaMoto = page.getByRole('searchbox', { name: 'Marca de la tarjeta' });
         this.nroTarjeta = page.locator('[id="input_infoDePago.numeroTarjeta"]');
         this.vencimientoTarjetaMes = page.getByRole('textbox', { name: 'MM', exact: true });
@@ -28,12 +28,9 @@ export default class EmisionFormaPago {
 
     }
 
-    public getFormaPago(auto: any): Locator {
-        if (auto.zurich) {
-            return this.page.getByRole('option', { name: auto.formaPagoZurich });
-        } else {
-            return this.page.getByRole('option', { name: auto.formaPago });
-        }
+    public getFormaPago(option: string): Locator {
+        console.log("Seleccionando forma de pago: " + option);
+        return this.page.getByRole('option', { name: option });
 
     }
 

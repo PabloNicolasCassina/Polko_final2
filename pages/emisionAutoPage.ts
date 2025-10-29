@@ -109,41 +109,72 @@ export default class EmisionAutoPage {
         if (errorVisible) {
             throw new Error("Hubo un problema al cotizar la póliza.");
         }
-        await this.cotizacionTabla.configAvanzadaBtn.click();
-        if (auto.rivadavia) {
-            await this.cotizacionTabla.fillRivadavia(auto);
+        if (auto.gnc) {
+            await this.cotizacionTabla.configAvanzadaBtn.click();
+            if (auto.rivadavia) {
+                await this.cotizacionTabla.fillRivadavia(auto);
+            }
+            if (auto.triunfo) {
+                await this.cotizacionTabla.fillTriunfo(auto);
+            }
+            await this.buttons.aplicarCambiosBtn.click();
+            await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
         }
-        if (auto.triunfo) {
-            await this.cotizacionTabla.fillTriunfo(auto);
-        }
-        await this.buttons.aplicarCambiosBtn.click();
-        await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
+
 
 
     }
 
-    async emitirFormaPago(auto: any) {
-        const nroCBU = "0113941911100007976873";
-        const nroTarjeta = "4509953566233704";
-        const vencimientoMes = "11";
-        const vencimientoAnio = "25";
+    // pages/emisionAutoPage.ts -> dentro de la clase EmisionAutoPage
+
+    async emitirFormaPago(datosDelTest: any) {
+    const nroCBU = "0113941911100007976873";
+    const nroTarjeta = "4509953566233704";
+    const vencimientoMes = "11";
+    const vencimientoAnio = "25";
+
+    // --- Determina qué método de pago FINAL se usará ---
+    // Si hubo selección secundaria, ese es el método final.
+    // Si no (ej: Efectivo, o si CBU/Tarjeta fueran opciones primarias directas),
+    // el método final es el primario.
+    const metodoPagoFinal = datosDelTest.formaPagoDetalle || datosDelTest.formaPago;
+
+    // --- PASO 1: Seleccionar la opción en el dropdown de ESTA pantalla ---
+    // Asegúrate que el dropdown exista en esta pantalla (podría no aparecer si el primario fue "Efectivo")
+    if (await this.emisionFormaPago.formaPagoSelect.isVisible()) {
         await this.emisionFormaPago.formaPagoSelect.click();
-        await this.emisionFormaPago.getFormaPago(auto).click();
-        if (auto.formaPago === "Débito por CBU") {
-            await this.emisionFormaPago.CBU.fill(nroCBU);
-            await this.buttons.siguienteBtn.click();
-        } else if (auto.formaPago === "Tarjeta de Crédito") {
-            await this.emisionFormaPago.marcaTarjeta.click();
-            await this.page.getByRole('option', { name: 'Visa' }).click();
-            await this.emisionFormaPago.nroTarjeta.fill(nroTarjeta);
-            await this.emisionFormaPago.vencimientoTarjetaMes.fill(vencimientoMes);
-            await this.emisionFormaPago.vencimientoTarjetaAnio.fill(vencimientoAnio);
-            await this.buttons.siguienteBtn.click();
-        } else {
-            await this.buttons.siguienteBtn.click();
-        }
+        console.log(`Intentando seleccionar en dropdown de emisión: ${metodoPagoFinal}`);
 
+        // Usa una función en EmisionFormaPago que seleccione por el texto FINAL
+        await this.emisionFormaPago.getFormaPago(metodoPagoFinal).click(); // <--- Necesitamos esta función
+        // O directamente:
+        // await this.page.getByRole('option', { name: metodoPagoFinal }).click(); // Menos encapsulado
+
+        console.log(`Seleccionada forma de pago final: ${metodoPagoFinal}`);
+    } else {
+         console.log(`Dropdown de forma de pago no visible para ${datosDelTest.formaPago}. Asumiendo que no se requiere selección adicional.`);
     }
+
+
+    // --- PASO 2: Rellenar campos asociados al método FINAL ---
+    if (metodoPagoFinal === "Tarjeta de crédito") {
+        console.log("Rellenando datos de Tarjeta de Crédito...");
+        await this.emisionFormaPago.marcaTarjeta.click();
+        await this.page.getByRole('option', { name: 'Visa' }).click(); // Asume Visa
+        await this.emisionFormaPago.nroTarjeta.fill(nroTarjeta);
+        await this.emisionFormaPago.vencimientoTarjetaMes.fill(vencimientoMes);
+        await this.emisionFormaPago.vencimientoTarjetaAnio.fill(vencimientoAnio);
+    } else if (metodoPagoFinal === "Débito por CBU") {
+        console.log("Rellenando CBU...");
+        await this.emisionFormaPago.CBU.fill(nroCBU);
+    } else if (metodoPagoFinal === "Efectivo") {
+        console.log("Forma de pago Efectivo seleccionada, sin campos adicionales.");
+    }
+    // Añade 'else if' para otras formas de pago finales si existen
+
+    // --- PASO 3: Avanzar ---
+    await this.buttons.siguienteBtn.click();
+}
 
     async emitirCliente() {
         await this.emisionCliente.nosisInput.fill("20386485446")
@@ -164,20 +195,20 @@ export default class EmisionAutoPage {
         await this.emisionDetalleAuto.nroMotorInput.fill(nroMotor);
         await this.emisionDetalleAuto.nroChasisInput.fill(nroChasis);
         if (auto.gnc) {
-        await this.emisionDetalleAuto.descripcionGncInput.fill("GNCIP");
-        if (auto.rivadavia) {
-            await this.emisionDetalleAuto.fechaVencimiento.fill(fechaVencimiento);
+            await this.emisionDetalleAuto.descripcionGncInput.fill("GNCIP");
+            if (auto.rivadavia) {
+                await this.emisionDetalleAuto.fechaVencimiento.fill(fechaVencimiento);
+            }
+            await this.emisionDetalleAuto.marcaReguladorInput.fill("ACME");
+            await this.emisionDetalleAuto.nroReguladorInput.fill("123456");
+            await this.emisionDetalleAuto.nuevoCilindroBtn.click();
+            for (let i = 0; i < 2; i++) {
+                const marcaCilindro = this.emisionDetalleAuto.generarMarcaCilindroAleatorio();
+                const numeroCilindro = this.emisionDetalleAuto.generarNroCilindroAleatorio();
+                await this.emisionDetalleAuto.getMarcaCilindroLocator(i.toString()).fill(marcaCilindro);
+                await this.emisionDetalleAuto.getNumeroCilindroLocator(i.toString()).fill(numeroCilindro);
+            }
         }
-        await this.emisionDetalleAuto.marcaReguladorInput.fill("ACME");
-        await this.emisionDetalleAuto.nroReguladorInput.fill("123456");
-        await this.emisionDetalleAuto.nuevoCilindroBtn.click();
-        for (let i = 0; i < 2; i++) {
-            const marcaCilindro = this.emisionDetalleAuto.generarMarcaCilindroAleatorio();
-            const numeroCilindro = this.emisionDetalleAuto.generarNroCilindroAleatorio();
-            await this.emisionDetalleAuto.getMarcaCilindroLocator(i.toString()).fill(marcaCilindro);
-            await this.emisionDetalleAuto.getNumeroCilindroLocator(i.toString()).fill(numeroCilindro);
-        }
-    }
         await this.buttons.siguienteBtn.click();
 
 

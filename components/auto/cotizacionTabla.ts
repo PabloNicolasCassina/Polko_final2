@@ -77,7 +77,7 @@ export default class CotizacionTabla {
         this.fedPatRow = page.getByText("CFTerceros Completo Premium").getByText("$");
         this.atmRow = page.getByText("C2C Premium").getByText("$");
         this.rusRow = page.getByText("SOSigma Cero").getByText("$");
-        this.triunfoRow = page.getByText('C2C2').getByText("$");
+        this.triunfoRow = page.getByText('AA').nth(1).getByText("$");
 
         this.emitirSancor = page.locator('#emitirButton_12');
         this.emitirRiva = page.locator('#emitirButton_MX');
@@ -86,7 +86,7 @@ export default class CotizacionTabla {
         this.emitirZurich = page.locator('#emitirButton_37');
         this.emitirAtm = page.locator('#emitirButton_C2');
         this.emitirRus = page.locator('#emitirButton_SO');
-        this.emitirTriunfo = page.locator('#emitirButton_C2');
+        this.emitirTriunfo = page.locator('#emitirButton_A');
         this.formaPagoSiguiente = page.locator('[id="select_infoDePago.formaDePago"]');
         this.companiasMap = {
             'sancor': this.emitirSancor,
@@ -172,6 +172,74 @@ export default class CotizacionTabla {
     public getOptionLocator(option: string): Locator {
         return this.page.getByRole("option", { name: option, exact: true });
     }
+
+    async setUsoVehiculo(datosDelTest: any) {
+        const usoVehiculoOption = datosDelTest.usoVehiculo || 'Particular'; // Usa default si no viene
+        await this.usoVehiculo.click();
+        await this.getOptionLocator(usoVehiculoOption).click();
+        console.log(`Uso Vehículo seleccionado: ${usoVehiculoOption}`);
+    }
+
+    async setTipoFacturacion(datosDelTest: any) {
+        // Asegúrate que tipoFacturacion siempre venga en datosDelTest
+        if (!datosDelTest.tipoFacturacion) {
+            throw new Error("setTipoFacturacion: 'tipoFacturacion' no encontrado en datosDelTest.");
+        }
+        await this.facturacion.click();
+        await this.getOptionLocator(datosDelTest.tipoFacturacion).click();
+        console.log(`Tipo Facturación seleccionado: ${datosDelTest.tipoFacturacion}`);
+    }
+
+    async setFormaPago(datosDelTest: any) {
+        // Asegúrate que formaPago siempre venga en datosDelTest
+        if (!datosDelTest.formaPago) {
+            throw new Error("setFormaPago: 'formaPago' no encontrado en datosDelTest.");
+        }
+        // Lógica condicional para elegir el locator correcto
+        const formaPagoLocator = datosDelTest.triunfo // Usa el flag booleano de la compañía
+            ? this.formaPagoDependant
+            : this.formaPago;
+        await formaPagoLocator.click();
+        await this.getOptionLocator(datosDelTest.formaPago).click();
+        console.log(`Forma Pago seleccionada: ${datosDelTest.formaPago}`);
+    }
+
+    async setCantidadCuotas(datosDelTest: any) {
+        // Asegúrate que cantCuotas siempre venga en datosDelTest
+        if (datosDelTest.cantCuotas === undefined || datosDelTest.cantCuotas === null) {
+            throw new Error("setCantidadCuotas: 'cantCuotas' no encontrado en datosDelTest.");
+        }
+        // Lógica condicional para elegir el locator correcto
+        const cuotasLocator = (datosDelTest.rivadavia || datosDelTest.triunfo) // Usa los flags booleanos
+            ? this.cuotasDependant
+            : this.cuotas;
+        await cuotasLocator.click();
+        // Convierte a string por si acaso viene como número
+        await this.getOptionLocator(datosDelTest.cantCuotas.toString()).click();
+        console.log(`Cantidad Cuotas seleccionada: ${datosDelTest.cantCuotas}`);
+    }
+
+    async setAjusteAutomatico(datosDelTest: any) {
+        // Solo actúa si ajusteAutomatico está presente en los datos
+        if (datosDelTest.ajusteAutomatico) {
+            if (datosDelTest.rivadavia) { // Lógica específica para Rivadavia
+                await this.ajusteRiva.click();
+                await this.getOptionLocator(datosDelTest.ajusteAutomatico).click();
+                console.log(`Ajuste Automático (Riva) seleccionado: ${datosDelTest.ajusteAutomatico}`);
+            } else { // Lógica genérica para otras Cías (si aplica)
+                 // Verifica si el locator genérico está visible antes de usarlo
+                 if (await this.ajusteAutomatico.isVisible()) {
+                     await this.ajusteAutomatico.click();
+                     await this.getOptionLocator(datosDelTest.ajusteAutomatico).click();
+                     console.log(`Ajuste Automático (Genérico) seleccionado: ${datosDelTest.ajusteAutomatico}`);
+                 } else {
+                     console.log("Ajuste automático genérico no visible/aplicable para esta compañía o configuración.");
+                 }
+            }
+        } else {
+            console.log("Ajuste automático no especificado en datosDelTest.");
+        }
+    }
     
     public async fillRivadavia(Auto: any)
     {
@@ -187,17 +255,13 @@ export default class CotizacionTabla {
         await this.getOptionLocator(Auto.usoVehiculo).click();
     }
 
-    public async fillTriunfo(Auto: any)
+    public async fillTriunfo(auto: any)
     {
         await this.aplicarDescuento15Porciento();
-        await this.usoVehiculo.click();
-        await this.getOptionLocator(Auto.usoVehiculo).click();
-        await this.facturacion.click();
-        await this.getOptionLocator(Auto.tipoFacturacion).click();
-        await this.cuotasDependant.click();
-        await this.getOptionLocator(Auto.cantCuotas).click();
-        await this.formaPagoDependant.click();
-        await this.getOptionLocator(Auto.formaPago).click();
+        await this.setUsoVehiculo(auto);
+        await this.setTipoFacturacion(auto);
+        await this.setCantidadCuotas(auto);
+        await this.setFormaPago(auto);
     }
 
 
