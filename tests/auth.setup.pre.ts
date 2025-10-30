@@ -64,30 +64,3 @@ setup('authentication - manual step required', async ({ page }) => {
 
 });
 
-// --- Código anterior comentado para referencia ---
-/*
-setup('authentication - original automated', async ({ page }) => {
-  // Verifica si el archivo de autenticación existe
-  if (fs.existsSync(authFile)) {
-    console.log('Archivo de autenticación ya existe. No se requiere nueva autenticación.');
-  } else {
-    // Guarda el estado de la sesión en un archivo
-    await page.goto("http://localhost:3000/");
-    await page.getByRole("button", { name: "INGRESAR" }).click();
-    await page.waitForLoadState("networkidle", { timeout: 60000 });
-    await page.getByRole("button", { name: "Ingresar con Facebook" }).click();
-    await page.getByRole("textbox", { name: "Email" }).fill("hermanoscassina@hotmail.com");
-    await page.getByRole("textbox", { name: "Password" }).fill("Lobita12+-");
-    await page.getByRole("button", { name: "Log In" }).click();
-    await page.waitForTimeout(2000)
-    await page.getByRole("button", { name: "Continuar como Nico" }).click();
-    await page.waitForLoadState("networkidle", { timeout: 60000 });
-    //await expect(page).toHaveURL('http://localhost:3000/callback');
-    await expect(page).toHaveURL('http://localhost:3000/u/dashboard');
-    await page.waitForLoadState("networkidle", { timeout: 60000 });
-
-    // Guarda el estado de la sesión
-    await page.context().storageState({ path: authFile });
-  }
-});
-*/

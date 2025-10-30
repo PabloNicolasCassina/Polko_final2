@@ -142,7 +142,10 @@ export default class EmisionAutoPage {
     // --- PASO 1: Seleccionar la opción en el dropdown de ESTA pantalla ---
     // Asegúrate que el dropdown exista en esta pantalla (podría no aparecer si el primario fue "Efectivo")
     if (await this.emisionFormaPago.formaPagoSelect.isVisible()) {
-        await this.emisionFormaPago.formaPagoSelect.click();
+        if (datosDelTest.formaPago !== "Efectivo"){
+            await this.emisionFormaPago.formaPagoSelect.click();
+        }
+        
         console.log(`Intentando seleccionar en dropdown de emisión: ${metodoPagoFinal}`);
 
         // Usa una función en EmisionFormaPago que seleccione por el texto FINAL
