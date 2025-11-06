@@ -10,17 +10,7 @@
             "tipoPersona": "Física",
             "sitImpositiva": "Consumidor final",
             "multi": false,
-            "descuento": true,
-            "zurich": false,
-            "sancor": false,
-            "federacion_patronal": false,
-            "rivadavia": false,
-            "rus": false,
-            "experta": false,
-            "atm": true,
-            "fechaVenc": true,
-            "formaPago": "Débito por CBU",
-            "gnc": false
+            "descuento": true
         },
         {
             "marca": "BENELLI",
@@ -32,17 +22,7 @@
             "tipoPersona": "Física",
             "sitImpositiva": "Consumidor final",
             "multi": false,
-            "descuento": true,
-            "zurich": false,
-            "sancor": false,
-            "federacion_patronal": false,
-            "rivadavia": false,
-            "rus": false,
-            "experta": false,
-            "atm": true,
-            "fechaVenc": true,
-            "formaPago": "Tarjeta de Crédito",
-            "gnc": false
+            "descuento": true
         },
         {
             "marca": "GILERA",
@@ -54,17 +34,7 @@
             "tipoPersona": "Física",
             "sitImpositiva": "Consumidor final",
             "multi": false,
-            "descuento": true,
-            "zurich": false,
-            "sancor": false,
-            "federacion_patronal": false,
-            "rivadavia": false,
-            "rus": false,
-            "experta": false,
-            "atm": true,
-            "fechaVenc": true,
-            "formaPago": "Efectivo",
-            "gnc": false
+            "descuento": true
         }
     ]
 }

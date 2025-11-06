@@ -114,7 +114,7 @@ export default class CotizacionTabla {
 
     }
 
-    public setVechaVigencia(): string {
+    public setFechaVigencia(): string {
         // 1. Obtené la fecha de hoy y sumale 5 días
         const fechaFutura = new Date();
         fechaFutura.setDate(fechaFutura.getDate() + 5);
@@ -227,23 +227,22 @@ export default class CotizacionTabla {
                 await this.getOptionLocator(datosDelTest.ajusteAutomatico).click();
                 console.log(`Ajuste Automático (Riva) seleccionado: ${datosDelTest.ajusteAutomatico}`);
             } else { // Lógica genérica para otras Cías (si aplica)
-                 // Verifica si el locator genérico está visible antes de usarlo
-                 if (await this.ajusteAutomatico.isVisible()) {
-                     await this.ajusteAutomatico.click();
-                     await this.getOptionLocator(datosDelTest.ajusteAutomatico).click();
-                     console.log(`Ajuste Automático (Genérico) seleccionado: ${datosDelTest.ajusteAutomatico}`);
-                 } else {
-                     console.log("Ajuste automático genérico no visible/aplicable para esta compañía o configuración.");
-                 }
+                // Verifica si el locator genérico está visible antes de usarlo
+                if (await this.ajusteAutomatico.isVisible()) {
+                    await this.ajusteAutomatico.click();
+                    await this.getOptionLocator(datosDelTest.ajusteAutomatico).click();
+                    console.log(`Ajuste Automático (Genérico) seleccionado: ${datosDelTest.ajusteAutomatico}`);
+                } else {
+                    console.log("Ajuste automático genérico no visible/aplicable para esta compañía o configuración.");
+                }
             }
         } else {
             console.log("Ajuste automático no especificado en datosDelTest.");
         }
     }
-    
-    public async fillRivadavia(Auto: any)
-    {
-        await this.fechaVigencia.fill(this.setVechaVigencia());
+
+    public async fillRivadavia(Auto: any) {
+        await this.fechaVigencia.fill(this.setFechaVigencia());
         await this.aplicarDescuento15Porciento();
         await this.ajusteRiva.click();
         await this.getOptionLocator(Auto.ajusteAutomatico).click();
@@ -255,8 +254,7 @@ export default class CotizacionTabla {
         await this.getOptionLocator(Auto.usoVehiculo).click();
     }
 
-    public async fillTriunfo(auto: any)
-    {
+    public async fillTriunfo(auto: any) {
         await this.aplicarDescuento15Porciento();
         await this.setUsoVehiculo(auto);
         await this.setTipoFacturacion(auto);
@@ -264,5 +262,63 @@ export default class CotizacionTabla {
         await this.setFormaPago(auto);
     }
 
+    public async fillSancor(auto: any) {
+        await this.aplicarDescuento15Porciento();
+        await this.fechaVigencia.fill(this.setFechaVigencia());
+        await this.setUsoVehiculo(auto);
+    }
 
+    public async fillZurich(auto: any) {
+        await this.aplicarDescuento15Porciento();
+        await this.fechaVigencia.fill(this.setFechaVigencia());
+        await this.facturacion.click();
+        await this.getOptionLocator(auto.tipoFacturacion).click();
+    }
+
+    public async fillRus(auto: any) {
+        await this.fechaVigencia.fill(this.setFechaVigencia());
+        await this.aplicarDescuento15Porciento();
+        await this.setUsoVehiculo(auto);
+        await this.setAjusteAutomatico(auto);
+    }
+
+    public async fillFedPat(auto: any) {
+        await this.fechaVigencia.fill(this.setFechaVigencia());
+    }
+
+    public async fillATM(auto: any) {
+        await this.fechaVigencia.fill(this.setFechaVigencia());
+        await this.aplicarDescuento15Porciento();
+        await this.setTipoFacturacion(auto);
+        await this.setCantidadCuotas(auto);
+        await this.setFormaPago(auto);
+    }
+
+    /**
+ * Método "Dispatcher": Llama a la receta de configuración correcta
+ * basándose en el flag booleano de la compañía activa en datosDelTest.
+ */
+public async fillCompanySpecificAdvancedConfig(datosDelTest: any) {
+    
+    // Mueve el bloque IF de emisionAutoPage.ts... ¡AQUÍ!
+    if (datosDelTest.rivadavia) {
+        await this.fillRivadavia(datosDelTest);
+    } else if (datosDelTest.triunfo) {
+        await this.fillTriunfo(datosDelTest);
+    } else if (datosDelTest.rus) {
+        await this.fillRus(datosDelTest);
+    } else if (datosDelTest.zurich) {
+        await this.fillZurich(datosDelTest);
+    } else if (datosDelTest.sancor) {
+        await this.fillSancor(datosDelTest);
+    } else if (datosDelTest.federacion_patronal) {
+        await this.fillFedPat(datosDelTest);
+    } else if (datosDelTest.atm) {
+        await this.fillATM(datosDelTest);
+    }
+    // (Añade 'else if (datosDelTest.experta)' si existe)
+    else {
+        console.log(`No hay configuración avanzada específica para la compañía activa.`);
+    }
+}
 }

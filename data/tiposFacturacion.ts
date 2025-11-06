@@ -3,7 +3,7 @@
 // Define los tipos de pago detallados
 type DetailedPaymentMethod = "Tarjeta de crédito" | "Débito por CBU";
 // Define los tipos de pago primarios
-type PrimaryPaymentMethod = "Medios electrónicos" | "Efectivo"; // Añade otros si existen
+type PrimaryPaymentMethod = "Medios electrónicos" | "Efectivo" | "Tarjeta de crédito" | "Débito por CBU"; // Añade otros si existen
 
 interface BillingOptionConfig {
   type: string;
@@ -17,6 +17,29 @@ interface BillingOptionConfig {
 }
 
 export const companyBillingConfigs: { [key: string]: BillingOptionConfig[] } = {
+
+  'sancor': [
+    {
+      type: "Anual",
+      // Define explícitamente las combinaciones válidas
+      validPaymentCombinations: [
+          { primary: "Tarjeta de crédito" },
+          { primary: "Débito por CBU" },
+          { primary: "Efectivo" } // Añade si 'Efectivo' es válido para Trimestral
+      ],
+      validInstallments: ["1"]
+    },
+    {
+      type: "Mensual",
+      validPaymentCombinations: [
+          { primary: "Medios electrónicos", secondary: "Tarjeta de crédito" },
+          { primary: "Medios electrónicos", secondary: "Débito por CBU" },
+      ],
+      validInstallments: ["1"]
+    },
+    // ... otras facturaciones para Rivadavia
+  ],
+  
   'rivadavia': [
     {
       type: "Trimestral",

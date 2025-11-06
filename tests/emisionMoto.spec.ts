@@ -1,152 +1,120 @@
 import { test, expect, type TestInfo, type Page, Download } from "@playwright/test";
-import path from 'path'; // Se agrega la importación de 'path'
-import fs from 'fs';     // Se agrega la importación de 'fs'
+import path from 'path';
+import fs from 'fs';
 import DashboardPage from "../pages/dashboardPage";
 import EmisionMotoPage from "../pages/emisionMotoPage";
 import data from "../data/motos.json";
 import CommonButtons from "../components/commonButtons";
 import Companias from "../components/companias";
-import CotizacionTabla from "../components/moto/cotizacionTablaMoto";
+import CotizacionTablaMoto from "../components/moto/cotizacionTablaMoto";
+// Importaciones añadidas
+import { companyConfigsMoto } from "../data/companyConfigsMoto"; // (Del archivo nuevo)
+import { buildMotoTestData } from "../helpers/testDataBuilder"; // (De la función helper)
 
 let dashboardPage: DashboardPage;
 let emisionMotoPage: EmisionMotoPage;
 let commonButtons: CommonButtons;
 let companias: Companias;
-let cotizacionTabla: CotizacionTabla;
+let cotizacionTabla: CotizacionTablaMoto;
 let buttons: CommonButtons;
 
 test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ page }, testInfo) => {
-    // El hook beforeEach ahora solo se encarga de la configuración común que NO depende de los parámetros del test.
-    let urlPrefix;
-    let dashPrefix;
-    const projectName = testInfo.project.name;
-
-    if (projectName === 'setup-pre' || projectName === 'chromiumPre') {
-        urlPrefix = 'http://localhost:8080';
-        dashPrefix = "http://localhost:3000";
-    } else if (projectName === 'setup-pro' || projectName === 'chromiumPro') {
-        urlPrefix = 'https://api.polko.com.ar';
-        dashPrefix = "https://www.polko.com.ar";
-    }
-
-    // LA NAVEGACIÓN INICIAL SE HA MOVIDO A CADA TEST INDIVIDUAL.
+    // ... (tu beforeEach existente) ...
 });
+
+test.afterEach(async ({ page }, testInfo) => {
+  // ... (tu afterEach existente) ...
+});
+
+/**
+ * Añade el flag booleano de la compañía (ej: sancor: true) al objeto de datos.
+ */
+// tests/emisionMoto.spec.ts
 
 const companiasPosibles = [
     'sancor', 'rivadavia', 'rus', 'atm'
 ];
 
-test.afterEach(async ({ page }, testInfo) => {
-  
-  // 1. Revisa si el test falló o se agotó el tiempo de espera
-  if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
-    
-    console.log('El test falló, intentando adjuntar logs del backend...');
-    
-    try {
-      // 2. Define la ruta a tu archivo de log del backend
-      const logFilePath = "C:\\Polko\\microservice_products\\server.log"
-
-      // 3. Lee el contenido del archivo de log
-      const logData = fs.readFileSync(logFilePath, 'utf8');
-      
-      // 4. (Opcional) Quedarse solo con las últimas líneas
-      const logLines = logData.split('\n');
-      const lastLines = logLines.slice(-50).join('\n'); // Adjunta las últimas 50 líneas
-
-      // 5. Adjunta el texto del log al reporte de Playwright
-      await testInfo.attach('backend-log-on-failure', {
-        body: `--- Últimas 50 líneas de server.log ---\n\n${lastLines}`,
-        contentType: 'text/plain',
-      });
-      
-      console.log('Log del backend adjuntado exitosamente.');
-
-    } catch (logError) {
-      // Maneja el caso donde el archivo de log no existe o no se puede leer
-      console.warn(`No se pudo leer o adjuntar el log del backend.`);
-
-      // --- CORRECCIÓN ---
-      let errorMessage = 'Error desconocido al leer el log.';
-      
-      if (logError instanceof Error) {
-        // Ahora TypeScript sabe que logError es un Error y tiene .message
-        errorMessage = logError.message;
-        console.warn(logError.message); 
-      } else {
-        // Si no es un Error, al menos reporta lo que sea que se haya capturado
-        console.warn(logError);
-        errorMessage = String(logError);
-      }
-      
-      await testInfo.attach('backend-log-error', {
-          body: `No se pudo leer el archivo de log del backend: ${errorMessage}`,
-          contentType: 'text/plain',
-      });
-    }
-  }
-});
-
 function prepararDatosMoto(moto: any, companiaActiva: string): any {
-    // 1. Ponemos todas las compañías en 'false'
+    // 1. Pone todos los flags en 'false'
     for (const compania of companiasPosibles) {
-        if (moto.hasOwnProperty(compania)) {
-            moto[compania] = false;
-        }
+        moto[compania] = false; // Añade la propiedad y la setea en false
     }
-
-    // 2. Ponemos la compañía deseada en 'true'
-    if (moto.hasOwnProperty(companiaActiva)) {
-        moto[companiaActiva] = true;
-    } else {
-        // Es bueno tener una verificación por si el nombre de la compañía es incorrecto
-        throw new Error(`La compañía "${companiaActiva}" no es una clave válida en el objeto de datos.`);
-    }
+    
+    // 2. Pone el activo en 'true'
+    moto[companiaActiva] = true; // Setea el flag de la compañía activa
 
     return moto;
 }
 
-//const companiasParaProbar = ['sancor', 'zurich', 'atm'];
-
-// 2. Bucle externo: recorre cada moto del JSON
+// --- NUEVA LÓGICA DE BUCLES ANIDADOS ---
 for (const moto of data.motos) {
-
-    // 3. Bucle interno: recorre cada compañía que quieres probar
     for (const compania of companiasPosibles) {
+        // Bucle para CON y SIN config avanzada
+        for (const tieneConfigAvanzada of [true, false]) {
+            
+            const configsCompania = companyConfigsMoto[compania];
+            
+            // Lógica para manejar la iteración
+            let configsParaIterar;
+            if (tieneConfigAvanzada) {
+                // Si es 'con config', itera sobre todas las configs definidas
+                configsParaIterar = configsCompania;
+                if (!configsParaIterar || configsParaIterar.length === 0) {
+                     console.warn(`Se esperaba 'con config' pero no hay configs definidas para MOTO: ${compania}. Saltando...`);
+                     continue; // Salta esta iteración de 'con config'
+                }
+            } else {
+                // Si es 'sin config', crea un solo caso de prueba
+                // usando la primera config como default (o una config vacía)
+                configsParaIterar = [ (configsCompania && configsCompania[0]) || { formaPago: "Efectivo", cantCuotas: 1 } ]; // Default si no hay nada
+            }
 
-        // 4. Crea un test para CADA combinación de moto y compañía
-        test(`Cotizar ${moto.marca} ${moto.version} ${moto.año} con ${compania}`, async ({ page }) => {
-            test.setTimeout(1200000);
-            dashboardPage = new DashboardPage(page);
-            emisionMotoPage = new EmisionMotoPage(page);
-            commonButtons = new CommonButtons(page);
-            companias = new Companias(page);
-            cotizacionTabla = new CotizacionTabla(page);
+            for (const config of configsParaIterar) {
+                
+                const testTitle = `Cotizar ${moto.marca} ${moto.version} ${moto.año} con ${compania} ${tieneConfigAvanzada ? 'con config' : 'sin config'} - Pago: ${config.formaPago} - Cuotas: ${config.cantCuotas} - Ajuste Automático: ${config.ajusteAutomatico || 'N/A'} - Uso Vehículo: ${config.usoVehiculo || 'N/A'}`;
+                
+                test(testTitle, async ({ page }, testInfo) => {
+                    test.setTimeout(1200000);
+                    dashboardPage = new DashboardPage(page);
+                    emisionMotoPage = new EmisionMotoPage(page);
+                    commonButtons = new CommonButtons(page);
+                    companias = new Companias(page);
+                    cotizacionTabla = new CotizacionTablaMoto(page);
 
-            // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
+                    // Construye el objeto de datos
+                    const datosMotoParaTest = buildMotoTestData({
+                        motoBase: moto,
+                        compania: compania,
+                        tieneConfigAvanzada: tieneConfigAvanzada,
+                        config: config
+                    });
+                    
+                    // Añade el flag booleano (ej: sancor: true)
+                    prepararDatosMoto(datosMotoParaTest, compania); 
 
-
-            await page.goto("http://localhost:3000/u/cotizar/motovehiculo");
-            await commonButtons.siguienteBtn.waitFor();
-            await cotizar(test, moto, compania);
-            await emitir(test, moto, compania);
-
-            // 6. Llama a tus métodos del Page Object con los datos ya preparados
-
-        });
+                    await page.goto("http://localhost:3000/u/cotizar/motovehiculo");
+                    await commonButtons.siguienteBtn.waitFor();
+                    
+                    await cotizar(test, datosMotoParaTest, compania);
+                    await emitir(test, datosMotoParaTest, compania);
+                });
+            }
+        }
     }
 }
+// --- FIN BUCLES ANIDADOS ---
 
-async function cotizar(test: any, moto: any, compania: string) {
-    const datosDelTest = prepararDatosMoto({ ...moto }, compania);
+
+async function cotizar(test: any, datosDelTest: any, compania: string) {
     await test.step(`📝Flujo cotización póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar Compañía", async () => {
+            // Esta lógica de Sancor/Rus es extraña, pero la mantengo
             await companias.sancorLogo.click();
             await companias.rusLogo.click();
             await companias.getCompaniaLogo(compania).click();
             await commonButtons.aceptarSelector.click();
         });
-
         await test.step("2- Completar datos de la moto", async () => {
             await emisionMotoPage.seleccionarMoto(datosDelTest, compania);
         });
@@ -154,21 +122,18 @@ async function cotizar(test: any, moto: any, compania: string) {
             await emisionMotoPage.seleccionarPersona(datosDelTest);
         });
         await test.step("4- Flujo tabla de cotización", async () => {
+            // Pasa los datos completos
             await emisionMotoPage.tablaCotizacion(datosDelTest);
             await cotizacionTabla.getValorCobertura(compania);
             await cotizacionTabla.getCompaniaBtn(compania).click();
         });
-
-
-
-
     });
 }
 
-async function emitir(test: any, moto: any, compania: string) {
-    const datosDelTest = prepararDatosMoto({ ...moto }, compania);
+async function emitir(test: any, datosDelTest: any, compania: string) {
     await test.step(`📝Flujo emisión póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar forma de pago", async () => {
+            // Pasa los datos completos
             await emisionMotoPage.emitirFormaPago(datosDelTest);
         });
         await test.step("2- Completar datos del cliente", async () => {
@@ -181,26 +146,22 @@ async function emitir(test: any, moto: any, compania: string) {
             await emisionMotoPage.emitirInspeccion();
         });
         await test.step("5- Emisión de póliza", async () => {
-
             await emisionMotoPage.emitirFinal();
         });
         await test.step("6- Descargar y adjuntar póliza", async () => {
             await descargarYAdjuntarPoliza(emisionMotoPage.page, test.info());
         });
-
     });
 }
 
-
 async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
+    // ... (tu función descargarYAdjuntarPoliza existente) ...
     console.log("Iniciando descarga de póliza...");
 
     // 1. Prepara la Promesa A: la descarga
     const downloadPromise = page.waitForEvent('download', { timeout: 60000 }); // Damos 60s para la descarga
 
     // 2. Prepara la Promesa B: la aparición del error
-    // (Asegúrate que 'emisionMotoPage.emisionFinal.errorDocumentacion' sea el selector
-    // correcto para el toast/popup de error "Error al descargar...")
     const errorPromise = emisionMotoPage.emisionFinal.errorDocumentacion
         .waitFor({ state: 'visible', timeout: 60000 }); // El error debe aparecer rápido (10s)
 
@@ -217,20 +178,14 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
         ]);
 
         // 5. Comprueba qué fue lo que pasó
-        // Si 'firstResult' tiene 'saveAs', es una Descarga (Promesa A ganó)
         if (firstResult && typeof (firstResult as Download).saveAs === 'function') {
-            // ¡Éxito! Es la descarga.
             console.log("¡Descarga detectada!");
             download = firstResult as Download;
         } else {
-            // ¡Error! El error apareció primero (Promesa B ganó)
-            console.error("¡Error de documentación detectado!");
-            // ESTO ES LO QUE TERMINA EL TEST Y AVISA
             throw new Error("Apareció el error 'Error al descargar la documentación' en lugar de la descarga.");
         }
 
     } catch (e) {
-        // Si Promise.race falla (ej. por timeout de ambas promesas), lo relanzamos
         console.error("Falló la carrera de promesas (ni descarga ni error aparecieron a tiempo):", e);
         throw e; // Falla el test
     }
@@ -238,20 +193,13 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
 
     // 4. Define tu directorio de destino de forma robusta
     const downloadDir = path.join(__dirname, '..', 'resultados-polizas');
-
-    // 5. Asegúrate de que el directorio exista, si no, lo crea
     fs.mkdirSync(downloadDir, { recursive: true });
-
-    // 6. Combina el directorio con el nombre de archivo sugerido para crear la ruta final
     const savePath = path.join(downloadDir, download.suggestedFilename());
-
-    // 7. Guarda el archivo en la ruta especificada
     await download.saveAs(savePath);
     console.log(`Póliza guardada en: ${savePath}`);
 
-    // 8. Adjunta el archivo recién guardado al reporte de Playwright
     await testInfo.attach('Poliza-Descargada', {
         path: savePath,
-        contentType: 'application/pdf', // Puedes cambiarlo si es otro tipo de archivo
+        contentType: 'application/pdf', 
     });
 }

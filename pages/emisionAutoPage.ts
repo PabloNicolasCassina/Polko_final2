@@ -109,14 +109,10 @@ export default class EmisionAutoPage {
         if (errorVisible) {
             throw new Error("Hubo un problema al cotizar la póliza.");
         }
-        if (auto.gnc) {
+        if (auto.configAvanzada) {
             await this.cotizacionTabla.configAvanzadaBtn.click();
-            if (auto.rivadavia) {
-                await this.cotizacionTabla.fillRivadavia(auto);
-            }
-            if (auto.triunfo) {
-                await this.cotizacionTabla.fillTriunfo(auto);
-            }
+            await this.cotizacionTabla.fillCompanySpecificAdvancedConfig(auto);
+            
             await this.buttons.aplicarCambiosBtn.click();
             await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
         }
@@ -128,56 +124,62 @@ export default class EmisionAutoPage {
     // pages/emisionAutoPage.ts -> dentro de la clase EmisionAutoPage
 
     async emitirFormaPago(datosDelTest: any) {
-    const nroCBU = "0113941911100007976873";
-    const nroTarjeta = "4509953566233704";
-    const vencimientoMes = "11";
-    const vencimientoAnio = "25";
+        const nroCBU = "0113941911100007976873";
+        const nroTarjeta = "4509953566233704";
+        const vencimientoMes = "11";
+        const vencimientoAnio = "25";
 
-    // --- Determina qué método de pago FINAL se usará ---
-    // Si hubo selección secundaria, ese es el método final.
-    // Si no (ej: Efectivo, o si CBU/Tarjeta fueran opciones primarias directas),
-    // el método final es el primario.
-    const metodoPagoFinal = datosDelTest.formaPagoDetalle || datosDelTest.formaPago;
+        // --- Determina qué método de pago FINAL se usará ---
+        // Si hubo selección secundaria, ese es el método final.
+        // Si no (ej: Efectivo, o si CBU/Tarjeta fueran opciones primarias directas),
+        // el método final es el primario.
+        const metodoPagoFinal = datosDelTest.formaPagoDetalle || datosDelTest.formaPago;
 
-    // --- PASO 1: Seleccionar la opción en el dropdown de ESTA pantalla ---
-    // Asegúrate que el dropdown exista en esta pantalla (podría no aparecer si el primario fue "Efectivo")
-    if (await this.emisionFormaPago.formaPagoSelect.isVisible()) {
-        if (datosDelTest.formaPago !== "Efectivo"){
-            await this.emisionFormaPago.formaPagoSelect.click();
+        // --- PASO 1: Seleccionar la opción en el dropdown de ESTA pantalla ---
+        // Asegúrate que el dropdown exista en esta pantalla (podría no aparecer si el primario fue "Efectivo")
+        if (await this.emisionFormaPago.formaPagoSelect.isVisible()) {
+            if (datosDelTest.triunfo || datosDelTest.rivadavia) {
+                if (datosDelTest.formaPago !== "Efectivo") {
+                    await this.emisionFormaPago.formaPagoSelect.click();
+                    await this.emisionFormaPago.getFormaPago(metodoPagoFinal).click();
+                }
+            } else {
+                await this.emisionFormaPago.formaPagoSelect.click();
+                await this.emisionFormaPago.getFormaPago(metodoPagoFinal).click();
+            }
+
+            console.log(`Intentando seleccionar en dropdown de emisión: ${metodoPagoFinal}`);
+
+            // Usa una función en EmisionFormaPago que seleccione por el texto FINAL
+            // <--- Necesitamos esta función
+            // O directamente:
+            // await this.page.getByRole('option', { name: metodoPagoFinal }).click(); // Menos encapsulado
+
+            console.log(`Seleccionada forma de pago final: ${metodoPagoFinal}`);
+        } else {
+            console.log(`Dropdown de forma de pago no visible para ${datosDelTest.formaPago}. Asumiendo que no se requiere selección adicional.`);
         }
-        
-        console.log(`Intentando seleccionar en dropdown de emisión: ${metodoPagoFinal}`);
 
-        // Usa una función en EmisionFormaPago que seleccione por el texto FINAL
-        await this.emisionFormaPago.getFormaPago(metodoPagoFinal).click(); // <--- Necesitamos esta función
-        // O directamente:
-        // await this.page.getByRole('option', { name: metodoPagoFinal }).click(); // Menos encapsulado
 
-        console.log(`Seleccionada forma de pago final: ${metodoPagoFinal}`);
-    } else {
-         console.log(`Dropdown de forma de pago no visible para ${datosDelTest.formaPago}. Asumiendo que no se requiere selección adicional.`);
+        // --- PASO 2: Rellenar campos asociados al método FINAL ---
+        if (metodoPagoFinal === "Tarjeta de crédito") {
+            console.log("Rellenando datos de Tarjeta de Crédito...");
+            await this.emisionFormaPago.marcaTarjeta.click();
+            await this.page.getByRole('option', { name: 'Visa', exact: true }).click(); // Asume Visa
+            await this.emisionFormaPago.nroTarjeta.fill(nroTarjeta);
+            await this.emisionFormaPago.vencimientoTarjetaMes.fill(vencimientoMes);
+            await this.emisionFormaPago.vencimientoTarjetaAnio.fill(vencimientoAnio);
+        } else if (metodoPagoFinal === "Débito por CBU") {
+            console.log("Rellenando CBU...");
+            await this.emisionFormaPago.CBU.fill(nroCBU);
+        } else if (metodoPagoFinal === "Efectivo") {
+            console.log("Forma de pago Efectivo seleccionada, sin campos adicionales.");
+        }
+        // Añade 'else if' para otras formas de pago finales si existen
+
+        // --- PASO 3: Avanzar ---
+        await this.buttons.siguienteBtn.click();
     }
-
-
-    // --- PASO 2: Rellenar campos asociados al método FINAL ---
-    if (metodoPagoFinal === "Tarjeta de crédito") {
-        console.log("Rellenando datos de Tarjeta de Crédito...");
-        await this.emisionFormaPago.marcaTarjeta.click();
-        await this.page.getByRole('option', { name: 'Visa' }).click(); // Asume Visa
-        await this.emisionFormaPago.nroTarjeta.fill(nroTarjeta);
-        await this.emisionFormaPago.vencimientoTarjetaMes.fill(vencimientoMes);
-        await this.emisionFormaPago.vencimientoTarjetaAnio.fill(vencimientoAnio);
-    } else if (metodoPagoFinal === "Débito por CBU") {
-        console.log("Rellenando CBU...");
-        await this.emisionFormaPago.CBU.fill(nroCBU);
-    } else if (metodoPagoFinal === "Efectivo") {
-        console.log("Forma de pago Efectivo seleccionada, sin campos adicionales.");
-    }
-    // Añade 'else if' para otras formas de pago finales si existen
-
-    // --- PASO 3: Avanzar ---
-    await this.buttons.siguienteBtn.click();
-}
 
     async emitirCliente() {
         await this.emisionCliente.nosisInput.fill("20386485446")

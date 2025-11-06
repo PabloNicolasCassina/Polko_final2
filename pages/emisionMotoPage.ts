@@ -5,12 +5,10 @@ import CotizacionPersona from "../components/moto/cotizacionPersonaMoto";
 import CotizacionTablaMoto from "../components/moto/cotizacionTablaMoto";
 import EmisionCliente from "../components/moto/emisionCliente";
 import Companias from "../components/companias";
-import EmisionFormaPago from "../components/moto/emisionFormaPago";
+import EmisionFormaPagoMoto from "../components/moto/emisionFormaPago"; // Importa la clase renombrada/correcta
 import EmisionDetalleMoto from "../components/moto/emisionDetalleMoto";
 import EmisionInspeccion from "../components/moto/emisionInspeccion";
 import EmisionFinal from "../components/emisionFinal";
-import { get } from "http";
-
 
 export default class EmisionMotoPage {
     readonly page: Page;
@@ -20,13 +18,10 @@ export default class EmisionMotoPage {
     readonly cotizacionTablaMoto: CotizacionTablaMoto;
     readonly emisionCliente: EmisionCliente;
     readonly companias: Companias;
-    readonly emisionFormaPago: EmisionFormaPago;
+    readonly emisionFormaPago: EmisionFormaPagoMoto; // Tipo actualizado
     readonly emisionDetalleMoto: EmisionDetalleMoto;
     readonly emisionInspeccion: EmisionInspeccion;
     readonly emisionFinal: EmisionFinal;
-
-
-
 
     constructor(page: Page) {
         this.page = page;
@@ -36,7 +31,7 @@ export default class EmisionMotoPage {
         this.cotizacionTablaMoto = new CotizacionTablaMoto(page);
         this.emisionCliente = new EmisionCliente(page);
         this.companias = new Companias(page);
-        this.emisionFormaPago = new EmisionFormaPago(page);
+        this.emisionFormaPago = new EmisionFormaPagoMoto(page); // Instancia actualizada
         this.emisionDetalleMoto = new EmisionDetalleMoto(page);
         this.emisionInspeccion = new EmisionInspeccion(page);
         this.emisionFinal = new EmisionFinal(page);
@@ -46,7 +41,6 @@ export default class EmisionMotoPage {
         const marcaOptionLocator = this.cotizacionMoto.getMarcaLocator(moto.marca);
         const anioOptionLocator = this.cotizacionMoto.getAnioLocator(moto.año);
         const versionOptionLocator = this.cotizacionMoto.getVersionLocator(moto.version);
-
 
         await this.cotizacionMoto.marcaSelector.click();
         await marcaOptionLocator.click();
@@ -60,19 +54,15 @@ export default class EmisionMotoPage {
             await this.buttons.siOptionLocator.click();
         }
         await this.buttons.siguienteBtn.click();
-
     }
 
     async seleccionarPersona(moto: any) {
-
         const tipoPersonaOptionLocator = this.cotizacionPersona.getTipoPersonaLocator(moto.tipoPersona);
         const sitImpositivaOptionLocator = this.cotizacionPersona.getSitImpositivaLocator(moto.sitImpositiva);
         const provinciaOptionLocator = this.cotizacionPersona.getProvinciaLocator(moto.provincia);
         const localidadOptionLocator = this.cotizacionPersona.getLocalidadLocator(moto.localidad);
 
-
-
-        await this.cotizacionPersona.tipoPersona.click()
+        await this.cotizacionPersona.tipoPersona.click();
         await tipoPersonaOptionLocator.click();
         await this.cotizacionPersona.sitImpositiva.click();
         await sitImpositivaOptionLocator.click();
@@ -82,72 +72,85 @@ export default class EmisionMotoPage {
         await expect(localidadOptionLocator).toBeVisible({ timeout: 300000 });
         await localidadOptionLocator.click();
         await this.buttons.cotizarBtn.click();
-
     }
 
-    async tablaCotizacion(moto: any) {
+    /**
+     * Lógica de la tabla de cotización (Configuración Avanzada).
+     */
+    async tablaCotizacion(datosDelTest: any) {
         await this.cotizacionTablaMoto.configAvanzadaBtn.waitFor();
-        await this.cotizacionTablaMoto.configAvanzadaBtn.click();
-        await this.cotizacionTablaMoto.fechaVigencia.fill(this.cotizacionTablaMoto.setVechaVigencia());
-        if (!moto.sancor) {
-            await this.cotizacionTablaMoto.descuentoBar15.click();
-        }
-        await this.buttons.aplicarCambiosBtn.click();
-        await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
 
+        // Si el flag 'tieneConfigAvanzada' es true, entra y aplica la lógica
+        if (datosDelTest.tieneConfigAvanzada) {
+            console.log("Aplicando configuraciones avanzadas de Moto...");
+            await this.cotizacionTablaMoto.configAvanzadaBtn.click();
+
+            // Llama al "dispatcher" de config avanzada en el componente
+            await this.cotizacionTablaMoto.fillCompanySpecificAdvancedConfig(datosDelTest);
+
+            await this.buttons.aplicarCambiosBtn.click();
+            await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
+            console.log("Configuraciones avanzadas de Moto aplicadas.");
+        } else {
+            // Si es false, salta la configuración avanzada
+            console.log("Saltando configuraciones avanzadas de Moto (flag 'sin config' está activo).");
+        }
     }
 
-    async emitirFormaPago(moto: any) {
-        const nroCBU = "0113941911100007976873";
-        const nroTarjeta = "4509953566233704";
-        const vencimientoMes = "11";
-        const vencimientoAnio = "25";
-        await this.emisionFormaPago.formaPagoSelect.click();
-        await this.emisionFormaPago.getFormaPago(moto).click();
-        if (moto.formaPago === "Débito por CBU") {
-            await this.emisionFormaPago.CBU.fill(nroCBU);
-            await this.buttons.siguienteBtn.click();
-        } else if (moto.formaPago === "Tarjeta de Crédito") {
-            await this.emisionFormaPago.marcaTarjeta.click();
-            await this.page.getByRole('option', { name: 'Visa' }).click();
-            await this.emisionFormaPago.nroTarjeta.fill(nroTarjeta);
-            if (moto.atm) {
-                await this.emisionFormaPago.vencimientoTarjetaMes.fill(vencimientoMes);
-                await this.emisionFormaPago.vencimientoTarjetaAnio.fill(vencimientoAnio);
-            }
+    /**
+     * Lógica de la pantalla de Emisión (Forma de Pago).
+     */
+    async emitirFormaPago(datosDelTest: any) {
+        const metodoPagoFinal = datosDelTest.formaPago;
 
+        // --- PASO 1: Seleccionar Forma de Pago ---
+        // Esto es correcto, ya que 'formaPagoSelect' está en esta pantalla
+        await this.emisionFormaPago.selectPaymentOption(metodoPagoFinal);
 
+        // --- PASO 2: Seleccionar Cantidad de Cuotas (SI EXISTE AQUÍ) ---
+        // (Añadimos un locator para 'Cantidad de Cuotas' en EmisionFormaPagoMoto si es necesario)
+        // const cuotasLocator = this.emisionFormaPago.cuotasSelect; // Suponiendo que existe
+        // if (datosDelTest.cantCuotas && await cuotasLocator.isVisible()) {
+        //     await cuotasLocator.click();
+        //     await this.page.getByRole('option', { name: datosDelTest.cantCuotas.toString() }).click();
+        //     console.log(`Cantidad Cuotas (Paso 2) seleccionada: ${datosDelTest.cantCuotas}`);
+        // }
 
+        // --- PASO 3: Rellenar campos asociados ---
+        if (metodoPagoFinal === "Tarjeta de Crédito") {
+            await this.emisionFormaPago.fillTarjetaCredito(datosDelTest);
+        } else if (metodoPagoFinal === "Débito por CBU") {
+            await this.emisionFormaPago.fillCBU();
+        } else if (metodoPagoFinal === "Efectivo") {
+            console.log("Forma de pago Efectivo (Moto), sin campos adicionales.");
         }
 
+        // --- PASO 4: Avanzar ---
         await this.buttons.siguienteBtn.click();
-
     }
 
     async emitirCliente() {
-        await this.emisionCliente.nosisInput.fill("20386485446")
+        await this.emisionCliente.nosisInput.fill("20386485446");
         await this.emisionCliente.buscarBtn.click();
         await expect(this.emisionCliente.localidadInput).not.toBeEmpty();
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirDetalleAuto() {
+    async emitirDetalleAuto() { // Renombrar a emitirDetalleMoto
         const patente = this.emisionDetalleMoto.generarPatenteAleatoriaAuto();
         const nroMotor = this.emisionDetalleMoto.generarNroMotorAleatorio();
         const nroChasis = this.emisionDetalleMoto.generarNroChasisAleatorio();
 
         await expect(this.page.getByText("Datos del vehículo")).toBeVisible({ timeout: 30000 });
-        await expect(this.emisionDetalleMoto.patenteInput).toBeVisible({ timeout: 30000 }); // Espera hasta 30s si es necesario
+        await expect(this.emisionDetalleMoto.patenteInput).toBeVisible({ timeout: 30000 });
         await this.emisionDetalleMoto.patenteInput.fill(patente);
         await this.emisionDetalleMoto.nroMotorInput.fill(nroMotor);
         await this.emisionDetalleMoto.nroChasisInput.fill(nroChasis);
         await this.buttons.siguienteBtn.click();
-
-
     }
 
     async emitirInspeccion() {
-        const filepath = "C:\\Polko\\Polko_final\\fixtures\\moto.jpg";
+        const filepath = "C:\\Polko\\Polko_final\\fixtures\\moto.jpg"; //
         await this.emisionInspeccion.inspecciondpzone.setInputFiles(filepath);
         await expect(this.emisionInspeccion.imgInspeccion).toBeVisible();
         await this.emisionInspeccion.etiquetaImg.click();
@@ -157,7 +160,6 @@ export default class EmisionMotoPage {
     }
 
     async emitirFinal() {
-
         await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
         await this.buttons.emitirBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
@@ -167,9 +169,5 @@ export default class EmisionMotoPage {
             throw new Error("Hubo un problema al emitir la póliza.");
         }
         await expect(this.emisionFinal.descargaBtn).toBeEnabled({ timeout: 60000 });
-    };
-
-
-
-
+    }
 }

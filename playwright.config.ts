@@ -53,7 +53,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         // Usa el estado de autenticación guardado por el proyecto 'setup'.
-        storageState: "C:\\Polko\\Polko_tests\\.auth\\userPre.json",
+        storageState: "C:\\Polko\\Polko_final\\.auth\\userPre.json",
       },
       dependencies: ['setup'], // Depende de que 'setup' termine primero
     },
