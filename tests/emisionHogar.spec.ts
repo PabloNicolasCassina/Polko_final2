@@ -5,14 +5,12 @@ import DashboardPage from "../pages/dashboardPage";
 import EmisionHogarPage from "../pages/emisionHogarPage";
 import data from "../data/hogar.json";
 import CommonButtons from "../components/commonButtons";
-import Companias from "../components/companias";
-import CotizacionTabla from "../components/auto/cotizacionTabla";
+import CotizacionTablaHogar from "../components/hogar/cotizacionTabla";
 
 let dashboardPage: DashboardPage;
 let emisionHogarPage: EmisionHogarPage;
 let commonButtons: CommonButtons;
-let companias: Companias;
-let cotizacionTabla: CotizacionTabla;
+let cotizacionTabla: CotizacionTablaHogar;
 let buttons: CommonButtons;
 
 test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ page }, testInfo) => {
@@ -85,11 +83,6 @@ test.afterEach(async ({ page }, testInfo) => {
 
 
 
-function prepararDatosHogar(hogar: any): any {
-    // 1. Ponemos todas las compañías en 'false'
-
-    return hogar;
-}
 
 //const companiasParaProbar = ['sancor', 'zurich', 'atm'];
 
@@ -104,8 +97,7 @@ for (const hogar of data.hogares) {
             dashboardPage = new DashboardPage(page);
             emisionHogarPage = new EmisionHogarPage(page);
             commonButtons = new CommonButtons(page);
-            companias = new Companias(page);
-            cotizacionTabla = new CotizacionTabla(page);
+            cotizacionTabla = new CotizacionTablaHogar(page);
 
             // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
 
@@ -113,7 +105,7 @@ for (const hogar of data.hogares) {
             await page.goto("http://localhost:3000/u/cotizar/hogar");
             await commonButtons.siguienteBtn.waitFor();
             await cotizar(test, hogar);
-            //await emitir(test, hogar, compania);
+            await emitir(test, hogar);
 
             // 6. Llama a tus métodos del Page Object con los datos ya preparados
 
@@ -121,37 +113,34 @@ for (const hogar of data.hogares) {
 }
 
 async function cotizar(test: any, hogar: any) {
-    const datosDelTest = prepararDatosHogar({ ...hogar });
+    const datosDelTest = { ...hogar }; // Crea la copia directamente
     await test.step(`📝Flujo cotización póliza para: ${hogar}`, async () => {
 
         await test.step("1- Completar datos del Hogar", async () => {
             await emisionHogarPage.seleccionarHogar(datosDelTest);
         });
         
-/*
+
         await test.step("2- Flujo tabla de cotización", async () => {
             await emisionHogarPage.tablaCotizacion();
-            await cotizacionTabla.getValorCobertura(compania);
-            await cotizacionTabla.getCompaniaBtn(compania).click();
-        });*/
-
+            await cotizacionTabla.getValorCoberturaTabla();
+        })
 
 
 
     });
 }
-/*
-async function emitir(test: any, auto: any, compania: string) {
-    const datosDelTest = prepararDatosAuto({ ...auto }, compania);
-    await test.step(`📝Flujo emisión póliza para: ${compania}`, async () => {
-        await test.step("1- Seleccionar forma de pago", async () => {
-            await emisionHogarPage.emitirFormaPago(datosDelTest);
+
+async function emitir(test: any, auto: any) {
+    await test.step(`📝Flujo emisión póliza`, async () => {
+        await test.step("1- Carga adicionales", async () => {
+            await emisionHogarPage.emitirInspeccion();
         });
-        await test.step("2- Completar datos del cliente", async () => {
+        await test.step("2- Completar datos de pago", async () => {
             await emisionHogarPage.emitirCliente();
         });
         await test.step("3- Completar detalle del auto", async () => {
-            await emisionHogarPage.emitirDetalleAuto();
+            //await emisionHogarPage.emitirDetalleAuto();
         });
         await test.step("4- Completar inspección", async () => {
             await emisionHogarPage.emitirInspeccion();
@@ -230,4 +219,4 @@ async function descargarYAdjuntarPoliza(page: Page, testInfo: TestInfo) {
         path: savePath,
         contentType: 'application/pdf', // Puedes cambiarlo si es otro tipo de archivo
     });
-}*/
+}

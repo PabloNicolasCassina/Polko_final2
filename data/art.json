@@ -1,0 +1,40 @@
+{
+    "casos": [
+        {
+            "empleador": "Oviedo",
+            "cuit": "20386485446",
+            "f931": true,
+            "contratoVigente": true,
+            "regimen": "Régimen General",
+            "cantEmpleados": "111",
+            "masaSalarial": "100000000"
+        },
+        {
+            "empleador": "Oviedo",
+            "cuit": "20386485446",
+            "f931": true,
+            "contratoVigente": true,
+            "regimen": "Régimen Especial",
+            "cantEmpleados": "111",
+            "horasSemanales": "Menos de 12"
+        },
+        {
+            "empleador": "Oviedo",
+            "cuit": "20386485446",
+            "f931": true,
+            "contratoVigente": true,
+            "regimen": "Régimen Especial",
+            "cantEmpleados": "111",
+            "horasSemanales": "12 a 16"
+        },
+        {
+            "empleador": "Oviedo",
+            "cuit": "20386485446",
+            "f931": true,
+            "contratoVigente": true,
+            "regimen": "Régimen Especial",
+            "cantEmpleados": "111",
+            "horasSemanales": "Más de 16"
+        }
+    ]
+}

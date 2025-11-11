@@ -2,7 +2,7 @@ import { Page, Locator, expect } from "@playwright/test";
 import CommonButtons from "../components/commonButtons";
 import CotizacionHogar from "../components/hogar/cotizacionHogar";
 import CotizacionPersona from "../components/hogar/cotizacionPersona";
-import CotizacionTabla from "../components/hogar/cotizacionTabla";
+import CotizacionTablaHogar from "../components/hogar/cotizacionTabla";
 import EmisionCliente from "../components/hogar/emisionCliente";
 import Companias from "../components/companias";
 import EmisionFormaPago from "../components/hogar/emisionFormaPago";
@@ -18,7 +18,7 @@ export default class EmisionHogarPage {
     readonly buttons: CommonButtons;
     readonly cotizacionHogar: CotizacionHogar;
     readonly cotizacionPersona: CotizacionPersona;
-    readonly cotizacionTabla: CotizacionTabla;
+    readonly cotizacionTabla: CotizacionTablaHogar;
     readonly emisionCliente: EmisionCliente;
     readonly companias: Companias;
     readonly emisionFormaPago: EmisionFormaPago;
@@ -34,7 +34,7 @@ export default class EmisionHogarPage {
         this.buttons = new CommonButtons(page);
         this.cotizacionHogar = new CotizacionHogar(page);
         this.cotizacionPersona = new CotizacionPersona(page);
-        this.cotizacionTabla = new CotizacionTabla(page);
+        this.cotizacionTabla = new CotizacionTablaHogar(page);
         this.emisionCliente = new EmisionCliente(page);
         this.companias = new Companias(page);
         this.emisionFormaPago = new EmisionFormaPago(page);
@@ -64,16 +64,37 @@ export default class EmisionHogarPage {
 
 
     async tablaCotizacion() {
-        await expect(this.cotizacionTabla.configAvanzadaBtn.or(this.cotizacionTabla.cotizacionErrorText)).toBeVisible({ timeout: 60000 });
+        const incendioEdificioInput = this.cotizacionTabla.getInputByHogarLabel('Incendio Edificio');
+        const incendioMobiliarioInput = this.cotizacionTabla.getInputByHogarLabel('Incendio Mobiliario');
+        const cristalesInput = this.cotizacionTabla.getInputByHogarLabel('Cristales');
+        const roboInput = this.cotizacionTabla.getInputByHogarLabel('Robo y/o Hurto del Mobiliario');
+        const equiposElectronicosInput = this.cotizacionTabla.getInputByHogarLabel('Aparatos y/o Equipos Electrónicos');
+        await expect(this.cotizacionTabla.incendioText).toBeVisible({ timeout: 60000 });
+
+        
+
+        await incendioEdificioInput.fill('30000000');
+        await incendioMobiliarioInput.fill('45000000');
+        await cristalesInput.fill('550000');
+        await roboInput.fill('5000000');
+        await equiposElectronicosInput.fill('2000000');
+
+        await this.cotizacionTabla.rBtnBici.click();
+        await this.cotizacionTabla.rBtnNotebook.click();
+        await this.cotizacionTabla.rBtnTablet.click();
+        await this.cotizacionTabla.rBtnVarios.click();
+
+        await this.cotizacionTabla.descuentoBar20.click();
+
+        await this.buttons.cotizarBtn.click();
+
+        await this.buttons.loadingSpinner.waitFor({ state: 'hidden', timeout: 60000 });
+
+        await expect(this.buttons.siguienteBtn.or(this.cotizacionTabla.cotizacionErrorText)).toBeVisible({ timeout: 60000 });
         const errorVisible = await this.cotizacionTabla.cotizacionErrorText.isVisible();
         if (errorVisible) {
             throw new Error("Hubo un problema al cotizar la póliza.");
         }
-        await this.cotizacionTabla.configAvanzadaBtn.click();
-        await this.cotizacionTabla.fechaVigencia.fill(this.cotizacionTabla.setVechaVigencia());
-        await this.cotizacionTabla.descuentoBar15.click();
-        await this.buttons.aplicarCambiosBtn.click();
-        await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
 
     }
 
@@ -109,11 +130,15 @@ export default class EmisionHogarPage {
 
 
     async emitirInspeccion() {
-        const filepath = "C:\\Polko\\Polko_final\\fixtures\\hogar.jpeg";
-        await this.emisionInspeccion.inspecciondpzone.setInputFiles(filepath);
-        await expect(this.emisionInspeccion.imgInspeccion).toBeVisible();
-        await this.emisionInspeccion.etiquetaImg.click();
-        await this.emisionInspeccion.etiquetaOption.click();
+        const filepath = "C:\\Polko\\Polko_final\\fixtures\\auto.jpeg";
+        await this.emisionInspeccion.dropzoneObjVarios.setInputFiles(filepath);
+        await expect(this.emisionInspeccion.imgInspeccionObjVarios).toBeVisible();
+        await this.emisionInspeccion.descObjVariosInput.fill("Televisor Samsung 55 pulgadas");
+        await this.emisionInspeccion.montoObjVariosInput.fill("500000");
+        await this.emisionInspeccion.dropzoneBici.setInputFiles(filepath);
+        await expect(this.emisionInspeccion.imgInspeccionBici).toBeVisible();
+        await this.emisionInspeccion.descBiciInput.fill("Bicicleta Mountain Bike");
+        await this.emisionInspeccion.montoBiciInput.fill("1000000");
         await expect(this.buttons.siguienteBtn).toBeEnabled();
         await this.buttons.siguienteBtn.click();
     }

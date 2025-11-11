@@ -16,6 +16,7 @@ export default class DashboardPage {
     readonly masterBtn: Locator;
     readonly aseguradoraFilter: Locator;
     readonly retirarFondos: Locator;
+    
 
     constructor(page: Page) {
         this.page = page;

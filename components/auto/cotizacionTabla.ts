@@ -8,6 +8,7 @@ export default class CotizacionTabla {
     readonly buttons: CommonButtons;
     readonly descuentoPointer: Locator;
     readonly descuentoBar15: Locator;
+    readonly descuentoBar20: Locator;
     readonly configAvanzadaBtn: Locator;
     readonly fechaVigencia: Locator;
     readonly sumaAsegurada: Locator;
@@ -55,6 +56,7 @@ export default class CotizacionTabla {
         this.buttons = new CommonButtons(page);
         this.descuentoPointer = page.getByRole('slider');
         this.descuentoBar15 = page.getByText("15%");
+        this.descuentoBar20 = page.getByText("20%");
         this.configAvanzadaBtn = page.getByText('Configuración avanzada', { exact: true });
         this.fechaVigencia = page.getByRole('textbox', { name: 'dd/mm/yyyy' });
         this.sumaAsegurada = page.locator('#number_sumaAseguradaVehiculo');
@@ -77,7 +79,7 @@ export default class CotizacionTabla {
         this.fedPatRow = page.getByText("CFTerceros Completo Premium").getByText("$");
         this.atmRow = page.getByText("C2C Premium").getByText("$");
         this.rusRow = page.getByText("SOSigma Cero").getByText("$");
-        this.triunfoRow = page.getByText('AA').nth(1).getByText("$");
+        this.triunfoRow = page.getByText("C2FULLC7").getByText("$");
 
         this.emitirSancor = page.locator('#emitirButton_12');
         this.emitirRiva = page.locator('#emitirButton_MX');
@@ -86,7 +88,7 @@ export default class CotizacionTabla {
         this.emitirZurich = page.locator('#emitirButton_37');
         this.emitirAtm = page.locator('#emitirButton_C2');
         this.emitirRus = page.locator('#emitirButton_SO');
-        this.emitirTriunfo = page.locator('#emitirButton_A');
+        this.emitirTriunfo = page.locator('#emitirButton_C2Full');
         this.formaPagoSiguiente = page.locator('[id="select_infoDePago.formaDePago"]');
         this.companiasMap = {
             'sancor': this.emitirSancor,
@@ -166,6 +168,11 @@ export default class CotizacionTabla {
 
     public async aplicarDescuento15Porciento(): Promise<void> {
         await this.descuentoBar15.click();
+        await this.descuentoPointer.click();
+    }
+
+    public async aplicarDescuento20Porciento(): Promise<void> {
+        await this.descuentoBar20.click();
         await this.descuentoPointer.click();
     }
 
@@ -255,7 +262,7 @@ export default class CotizacionTabla {
     }
 
     public async fillTriunfo(auto: any) {
-        await this.aplicarDescuento15Porciento();
+        await this.aplicarDescuento20Porciento();
         await this.setUsoVehiculo(auto);
         await this.setTipoFacturacion(auto);
         await this.setCantidadCuotas(auto);

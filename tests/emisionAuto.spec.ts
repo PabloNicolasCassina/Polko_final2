@@ -32,13 +32,13 @@ test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ p
         urlPrefix = 'https://api.polko.com.ar';
         dashPrefix = "https://www.polko.com.ar";
     }
-/*
+
     await page.route("http://localhost:8080/newGetDatosUsuario?es_master=true*", async route => {
         await route.fulfill({
             contentType: 'application/json',
             body: mockUserDataString,
         })
-    });*/
+    });
 
     // LA NAVEGACIÓN INICIAL SE HA MOVIDO A CADA TEST INDIVIDUAL.
 });
