@@ -140,7 +140,23 @@ for (const auto of data.autos) {
                     continue; // Si no hay configuraciones, salta a la siguiente compañía
                 }
 
-                for (const tipoFacturacion of facturacionCompania) {
+                // Filtrar las opciones de facturación según tieneConfigAvanzada
+                let facturacionFiltrada = facturacionCompania;
+                if (!tieneConfigAvanzada) {
+                    // Sin config avanzada: solo Mensual, solo Medios electrónicos, solo 1 cuota
+                    facturacionFiltrada = facturacionCompania
+                        .filter(config => config.type === "Mensual")
+                        .map(config => ({
+                            ...config,
+                            validPaymentCombinations: config.validPaymentCombinations.filter(
+                                metodo => metodo.primary === "Medios electrónicos"
+                            ),
+                            validInstallments: ["1"]
+                        }))
+                        .filter(config => config.validPaymentCombinations.length > 0);
+                }
+
+                for (const tipoFacturacion of facturacionFiltrada) {
                     for (const metodoPago of tipoFacturacion.validPaymentCombinations) {
                         for (const cuota of tipoFacturacion.validInstallments) {
                             let paymentDesc = metodoPago.primary;
