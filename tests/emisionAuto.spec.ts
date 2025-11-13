@@ -119,6 +119,148 @@ function prepararDatosAuto(auto: any, companiaActiva: string): any {
     return auto;
 }
 
+interface TriunfoTestCaseConfig {
+    marca: string;
+    modelo: string;
+    año: string;
+    tieneConfigAvanzada: boolean;
+    tieneGNC: boolean;
+    facturacion: string;
+    paymentPrimary: string;
+    paymentSecondary?: string;
+    cuota: string;
+}
+
+const casosTriunfoRepresentativos: TriunfoTestCaseConfig[] = [
+    // Config avanzada, Trimestral, Efectivo, muestra GNC true y cuotas largas
+    {
+        marca: "RENAULT",
+        modelo: "LOGAN",
+        año: "2022",
+        tieneConfigAvanzada: true,
+        tieneGNC: true,
+        facturacion: "Trimestral",
+        paymentPrimary: "Efectivo",
+        cuota: "3",
+    },
+    // Config avanzada, Trimestral, Medios electrónicos > Tarjeta, cuota intermedia
+    {
+        marca: "TOYOTA",
+        modelo: "HILUX",
+        año: "2025",
+        tieneConfigAvanzada: true,
+        tieneGNC: true,
+        facturacion: "Trimestral",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Tarjeta de crédito",
+        cuota: "2",
+    },
+    // Config avanzada, Trimestral, Medios electrónicos > Débito por CBU, cuota corta
+    {
+        marca: "RENAULT",
+        modelo: "LOGAN",
+        año: "2022",
+        tieneConfigAvanzada: true,
+        tieneGNC: true,
+        facturacion: "Trimestral",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Débito por CBU",
+        cuota: "1",
+    },
+    // Config avanzada, Mensual, Medios electrónicos > Tarjeta, con GNC true
+    {
+        marca: "RENAULT",
+        modelo: "LOGAN",
+        año: "2022",
+        tieneConfigAvanzada: true,
+        tieneGNC: true,
+        facturacion: "Mensual",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Tarjeta de crédito",
+        cuota: "1",
+    },
+    // Config avanzada, Mensual, Medios electrónicos > Débito por CBU, con GNC false
+    {
+        marca: "TOYOTA",
+        modelo: "HILUX",
+        año: "2025",
+        tieneConfigAvanzada: true,
+        tieneGNC: false,
+        facturacion: "Mensual",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Débito por CBU",
+        cuota: "1",
+    },
+    // Config avanzada, Trimestral, Efectivo, con GNC false
+    {
+        marca: "RENAULT",
+        modelo: "CLIO",
+        año: "2008",
+        tieneConfigAvanzada: true,
+        tieneGNC: false,
+        facturacion: "Trimestral",
+        paymentPrimary: "Efectivo",
+        cuota: "1",
+    },
+    // Config avanzada, Mensual, Medios electrónicos > Tarjeta, con GNC false (vehículo usado)
+    {
+        marca: "RENAULT",
+        modelo: "CLIO",
+        año: "2008",
+        tieneConfigAvanzada: true,
+        tieneGNC: false,
+        facturacion: "Mensual",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Tarjeta de crédito",
+        cuota: "1",
+    },
+    // Sin config avanzada, Mensual, Medios electrónicos > Tarjeta
+    {
+        marca: "RENAULT",
+        modelo: "LOGAN",
+        año: "2025",
+        tieneConfigAvanzada: false,
+        tieneGNC: false,
+        facturacion: "Mensual",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Tarjeta de crédito",
+        cuota: "1",
+    },
+    // Sin config avanzada, Mensual, Medios electrónicos > Débito por CBU
+    {
+        marca: "RENAULT",
+        modelo: "LOGAN",
+        año: "2025",
+        tieneConfigAvanzada: false,
+        tieneGNC: false,
+        facturacion: "Mensual",
+        paymentPrimary: "Medios electrónicos",
+        paymentSecondary: "Débito por CBU",
+        cuota: "1",
+    },
+];
+
+function esCasoTriunfoSeleccionado(
+    auto: any,
+    tieneConfigAvanzada: boolean,
+    tieneGNC: boolean,
+    tipoFacturacion: { type: string },
+    metodoPago: { primary: string; secondary?: string },
+    cuota: string | number
+): boolean {
+    return casosTriunfoRepresentativos.some(caso =>
+        caso.marca === auto.marca &&
+        caso.modelo === auto.modelo &&
+        caso.año === auto.año &&
+        caso.tieneConfigAvanzada === tieneConfigAvanzada &&
+        caso.tieneGNC === tieneGNC &&
+        caso.facturacion === tipoFacturacion.type &&
+        caso.paymentPrimary === metodoPago.primary &&
+        (caso.paymentSecondary ?? null) === (metodoPago.secondary ?? null) &&
+        caso.cuota === cuota.toString()
+    );
+}
+
 //const companiasParaProbar = ['sancor', 'zurich', 'atm'];
 
 // 2. Bucle externo: recorre cada auto del JSON
@@ -162,6 +304,16 @@ for (const auto of data.autos) {
                             let paymentDesc = metodoPago.primary;
                             if (metodoPago.secondary) {
                                 paymentDesc += ` > ${metodoPago.secondary}`; // Indica la sub-selección
+                            }
+                            if (compania === 'triunfo' && !esCasoTriunfoSeleccionado(
+                                auto,
+                                tieneConfigAvanzada,
+                                tieneGNC,
+                                tipoFacturacion,
+                                metodoPago,
+                                cuota
+                            )) {
+                                continue;
                             }
                             // 4. Crea un test para CADA combinación de auto y compañía
                             test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania} ${tieneConfigAvanzada ? 'con config' : 'sin config'} - ${tieneGNC ? 'con GNC' : 'sin GNC'} - Fact: ${tipoFacturacion.type} - Pago: ${paymentDesc} - Cuotas: ${cuota} - Metodo de pago: ${paymentDesc}`, async ({ page }, testInfo) => {

@@ -3,9 +3,9 @@ import CommonButtons from "../components/commonButtons";
 import CotizacionVehiculo from "../components/auto/cotizacionVehiculo";
 import CotizacionPersona from "../components/auto/cotizacionPersona";
 import CotizacionTabla from "../components/auto/cotizacionTabla";
-import EmisionCliente from "../components/auto/emisionCliente";
+import EmisionCliente from "../components/emisionCliente";
 import Companias from "../components/companias";
-import EmisionFormaPago from "../components/auto/emisionFormaPago";
+import EmisionFormaPago from "../components/emisionFormaPago";
 import EmisionDetalleAuto from "../components/auto/emisionDetalleAuto";
 import EmisionInspeccion from "../components/auto/emisionInspeccion";
 import emisionFinal from "../components/emisionFinal";
@@ -140,12 +140,11 @@ export default class EmisionAutoPage {
         if (await this.emisionFormaPago.formaPagoSelect.isVisible()) {
             if (datosDelTest.triunfo || datosDelTest.rivadavia) {
                 if (datosDelTest.formaPago !== "Efectivo") {
-                    await this.emisionFormaPago.formaPagoSelect.click();
-                    await this.emisionFormaPago.getFormaPago(metodoPagoFinal).click();
+                    await this.emisionFormaPago.selectPaymentOption(metodoPagoFinal);
                 }
             } else {
-                await this.emisionFormaPago.formaPagoSelect.click();
-                await this.emisionFormaPago.getFormaPago(metodoPagoFinal).click();
+                
+                await this.emisionFormaPago.selectPaymentOption(metodoPagoFinal);
             }
 
             console.log(`Intentando seleccionar en dropdown de emisión: ${metodoPagoFinal}`);

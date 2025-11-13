@@ -3,9 +3,9 @@ import CommonButtons from "../components/commonButtons";
 import CotizacionHogar from "../components/hogar/cotizacionHogar";
 import CotizacionPersona from "../components/hogar/cotizacionPersona";
 import CotizacionTablaHogar from "../components/hogar/cotizacionTabla";
-import EmisionCliente from "../components/hogar/emisionCliente";
+import EmisionCliente from "../components/emisionCliente";
 import Companias from "../components/companias";
-import EmisionFormaPago from "../components/hogar/emisionFormaPago";
+import EmisionFormaPago from "../components/emisionFormaPago";
 import EmisionDetalleHogar from "../components/hogar/emisionDetallehogar";
 import EmisionInspeccion from "../components/hogar/emisionInspeccion";
 import emisionFinal from "../components/emisionFinal";
@@ -103,8 +103,7 @@ export default class EmisionHogarPage {
         const nroTarjeta = "4509953566233704";
         const vencimientoMes = "11";
         const vencimientoAnio = "25";
-        await this.emisionFormaPago.formaPagoSelect.click();
-        await this.emisionFormaPago.getFormaPago(hogar).click();
+        await this.emisionFormaPago.selectPaymentOption(hogar.formaPago);
         if (hogar.formaPago === "Débito por CBU" || hogar.formaPagoZurich === "Débito por CBU") {
             await this.emisionFormaPago.CBU.fill(nroCBU);
             await this.buttons.siguienteBtn.click();
@@ -143,8 +142,10 @@ export default class EmisionHogarPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirFinal() {
+    async emitirFinal(valorTabla: string | null) {
 
+        const valorFinal = await this.emisionFinal.getValorCoberturaFinal();
+        await expect(valorTabla).toEqual(valorFinal);
         await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
         await this.buttons.emitirBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });

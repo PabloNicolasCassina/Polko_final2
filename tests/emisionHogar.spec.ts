@@ -31,54 +31,54 @@ test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ p
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-  
-  // 1. Revisa si el test falló o se agotó el tiempo de espera
-  if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
-    
-    console.log('El test falló, intentando adjuntar logs del backend...');
-    
-    try {
-      // 2. Define la ruta a tu archivo de log del backend
-      const logFilePath = "C:\\Polko\\microservice_products\\server.log"
 
-      // 3. Lee el contenido del archivo de log
-      const logData = fs.readFileSync(logFilePath, 'utf8');
-      
-      // 4. (Opcional) Quedarse solo con las últimas líneas
-      const logLines = logData.split('\n');
-      const lastLines = logLines.slice(-50).join('\n'); // Adjunta las últimas 50 líneas
+    // 1. Revisa si el test falló o se agotó el tiempo de espera
+    if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
 
-      // 5. Adjunta el texto del log al reporte de Playwright
-      await testInfo.attach('backend-log-on-failure', {
-        body: `--- Últimas 50 líneas de server.log ---\n\n${lastLines}`,
-        contentType: 'text/plain',
-      });
-      
-      console.log('Log del backend adjuntado exitosamente.');
+        console.log('El test falló, intentando adjuntar logs del backend...');
 
-    } catch (logError) {
-      // Maneja el caso donde el archivo de log no existe o no se puede leer
-      console.warn(`No se pudo leer o adjuntar el log del backend.`);
+        try {
+            // 2. Define la ruta a tu archivo de log del backend
+            const logFilePath = "C:\\Polko\\microservice_products\\server.log"
 
-      // --- CORRECCIÓN ---
-      let errorMessage = 'Error desconocido al leer el log.';
-      
-      if (logError instanceof Error) {
-        // Ahora TypeScript sabe que logError es un Error y tiene .message
-        errorMessage = logError.message;
-        console.warn(logError.message); 
-      } else {
-        // Si no es un Error, al menos reporta lo que sea que se haya capturado
-        console.warn(logError);
-        errorMessage = String(logError);
-      }
-      
-      await testInfo.attach('backend-log-error', {
-          body: `No se pudo leer el archivo de log del backend: ${errorMessage}`,
-          contentType: 'text/plain',
-      });
+            // 3. Lee el contenido del archivo de log
+            const logData = fs.readFileSync(logFilePath, 'utf8');
+
+            // 4. (Opcional) Quedarse solo con las últimas líneas
+            const logLines = logData.split('\n');
+            const lastLines = logLines.slice(-50).join('\n'); // Adjunta las últimas 50 líneas
+
+            // 5. Adjunta el texto del log al reporte de Playwright
+            await testInfo.attach('backend-log-on-failure', {
+                body: `--- Últimas 50 líneas de server.log ---\n\n${lastLines}`,
+                contentType: 'text/plain',
+            });
+
+            console.log('Log del backend adjuntado exitosamente.');
+
+        } catch (logError) {
+            // Maneja el caso donde el archivo de log no existe o no se puede leer
+            console.warn(`No se pudo leer o adjuntar el log del backend.`);
+
+            // --- CORRECCIÓN ---
+            let errorMessage = 'Error desconocido al leer el log.';
+
+            if (logError instanceof Error) {
+                // Ahora TypeScript sabe que logError es un Error y tiene .message
+                errorMessage = logError.message;
+                console.warn(logError.message);
+            } else {
+                // Si no es un Error, al menos reporta lo que sea que se haya capturado
+                console.warn(logError);
+                errorMessage = String(logError);
+            }
+
+            await testInfo.attach('backend-log-error', {
+                body: `No se pudo leer el archivo de log del backend: ${errorMessage}`,
+                contentType: 'text/plain',
+            });
+        }
     }
-  }
 });
 
 
@@ -91,65 +91,66 @@ for (const hogar of data.hogares) {
 
     // 3. Bucle interno: recorre cada compañía que quieres probar
 
-        // 4. Crea un test para CADA combinación de hogar y compañía
-        test(`Cotizar ${hogar.tipoVivienda} ${hogar.tamanioVivienda} ${hogar.localidad}`, async ({ page }) => {
-            test.setTimeout(1200000);
-            dashboardPage = new DashboardPage(page);
-            emisionHogarPage = new EmisionHogarPage(page);
-            commonButtons = new CommonButtons(page);
-            cotizacionTabla = new CotizacionTablaHogar(page);
+    // 4. Crea un test para CADA combinación de hogar y compañía
+    test(`Cotizar ${hogar.tipoVivienda} ${hogar.tamanioVivienda} ${hogar.localidad}`, async ({ page }) => {
+        test.setTimeout(1200000);
+        dashboardPage = new DashboardPage(page);
+        emisionHogarPage = new EmisionHogarPage(page);
+        commonButtons = new CommonButtons(page);
+        cotizacionTabla = new CotizacionTablaHogar(page);
 
-            // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
+        // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
 
 
-            await page.goto("http://localhost:3000/u/cotizar/hogar");
-            await commonButtons.siguienteBtn.waitFor();
-            await cotizar(test, hogar);
-            await emitir(test, hogar);
+        await page.goto("http://localhost:3000/u/cotizar/hogar");
+        await commonButtons.siguienteBtn.waitFor();
+        const valorTabla = await cotizar(test, hogar);
+        await emitir(test, hogar, valorTabla);
 
-            // 6. Llama a tus métodos del Page Object con los datos ya preparados
+        // 6. Llama a tus métodos del Page Object con los datos ya preparados
 
-        });
+    });
 }
 
 async function cotizar(test: any, hogar: any) {
     const datosDelTest = { ...hogar }; // Crea la copia directamente
+    let valorTabla: string | null = null;
     await test.step(`📝Flujo cotización póliza para: ${hogar}`, async () => {
 
         await test.step("1- Completar datos del Hogar", async () => {
             await emisionHogarPage.seleccionarHogar(datosDelTest);
         });
-        
+
 
         await test.step("2- Flujo tabla de cotización", async () => {
             await emisionHogarPage.tablaCotizacion();
-            await cotizacionTabla.getValorCoberturaTabla();
+            valorTabla = await cotizacionTabla.getValorCoberturaTabla();
+            
+            await commonButtons.siguienteBtn.click();
         })
 
 
-
+        
     });
+    return valorTabla;
 }
 
-async function emitir(test: any, auto: any) {
+async function emitir(test: any, hogar: any, valorTabla: string | null) {
     await test.step(`📝Flujo emisión póliza`, async () => {
         await test.step("1- Carga adicionales", async () => {
             await emisionHogarPage.emitirInspeccion();
         });
         await test.step("2- Completar datos de pago", async () => {
+            await emisionHogarPage.emitirFormaPago(hogar);
+        });
+        await test.step("3- Completar detalle de cliente", async () => {
             await emisionHogarPage.emitirCliente();
         });
-        await test.step("3- Completar detalle del auto", async () => {
-            //await emisionHogarPage.emitirDetalleAuto();
+        await test.step("4- Emisión de póliza", async () => {
+
+            await emisionHogarPage.emitirFinal(hogar.valorTabla);
         });
-        await test.step("4- Completar inspección", async () => {
-            await emisionHogarPage.emitirInspeccion();
-        });
-        await test.step("5- Emisión de póliza", async () => {
-            
-            await emisionHogarPage.emitirFinal();
-        });
-        await test.step("6- Descargar y adjuntar póliza", async () => {
+        await test.step("5- Descargar y adjuntar póliza", async () => {
             await descargarYAdjuntarPoliza(emisionHogarPage.page, test.info());
         });
 

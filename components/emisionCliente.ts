@@ -21,7 +21,7 @@ export default class EmisionCliente {
         this.completarBtn = page.getByRole('button', { name: 'Completar manualmente' });
         this.masculinoRadio = page.getByRole('radio', { name: 'Masculino' });
         this.femeninoRadio = page.getByRole('radio', { name: 'Femenino' });
-        this.localidadInput = page.locator('[id="select_clientes.0.codigosLocalidad"]');
+        this.localidadInput = page.locator('[id="select_clientes.0.codigosLocalidad"]').or(page.getByRole('textbox', { name: 'Código postal' }));
 
         
     }

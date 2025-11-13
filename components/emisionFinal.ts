@@ -17,7 +17,7 @@ export default class EmisionFinal {
     constructor(page: Page) {
         this.page = page;
         this.descargaBtn = page.getByRole('button', { name: 'DESCARGAR' });
-        this.emisionExitosaText = page.getByText('¡Felicitaciones, la operación');
+        this.emisionExitosaText = page.getByText('¡Felicitaciones, la operación').or(page.getByText('¡Felicitaciones!Recibimos tu'));
         this.errorDocumentacion = page.getByText("Error al descargar");
         this.errorEmision = page.getByText("Hubo un problema al emitir");
         this.valorCobertura = page.getByText("Cuota mensual: $");

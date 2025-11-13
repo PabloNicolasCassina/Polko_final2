@@ -5,6 +5,7 @@ import CotizacionEmpleado from "../components/ART/cotizacionEmpleado";
 import DashboardPage from "./dashboardPage";
 import TablaUltCotizaciones from "../components/ART/tablaUltCotizaciones";
 import TablaEmision from "../components/ART/tablaEmision";
+import EmisionFinal from "../components/emisionFinal";
 import { get } from "http";
 import path from "path";
 
@@ -18,6 +19,7 @@ export default class EmisionArtPage {
     readonly dashboardPage: DashboardPage;
     readonly tablaUltCotizaciones: TablaUltCotizaciones
     readonly tablaEmision: TablaEmision;
+    readonly emisionFinal: EmisionFinal;
 
 
 
@@ -32,6 +34,7 @@ export default class EmisionArtPage {
         this.dashboardPage = new DashboardPage(page);
         this.tablaUltCotizaciones = new TablaUltCotizaciones(page)
         this.tablaEmision = new TablaEmision(page);
+        this.emisionFinal = new EmisionFinal(page);
 
     }
 
@@ -89,6 +92,19 @@ export default class EmisionArtPage {
             await this.tablaEmision.masBtn.click();
             await this.tablaEmision.menosBtn.click();
             await this.buttons.emitirBtn.first().click();
+        }
+    }
+
+    
+
+    async emitirFinal() {
+        await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
+        await this.buttons.emitirBtn.click();
+        await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
+        await expect(this.emisionFinal.emisionExitosaText.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: 60000 });
+        const errorVisible = await this.emisionFinal.errorEmision.isVisible();
+        if (errorVisible) {
+            throw new Error("Hubo un problema al emitir la póliza.");
         }
     }
 }

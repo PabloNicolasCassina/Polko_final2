@@ -13,6 +13,7 @@ export default class CommonButtons {
     readonly emitirBtn: Locator;
     readonly aplicarCambiosBtn: Locator;
     readonly loadingSpinner: Locator;
+    readonly dismissBtn: Locator;
 
 
 
@@ -23,9 +24,10 @@ export default class CommonButtons {
         this.atrasBtn = page.getByRole('button', { name: 'Atrás' });
         this.siOptionLocator = this.page.getByRole("option", { name: "Si", exact: true });
         this.cotizarBtn = page.getByRole('button', { name: 'COTIZAR', exact: true });
-        this.emitirBtn = page.getByRole('button', { name: 'Emitir' });
+        this.emitirBtn = page.getByRole('button', { name: 'EMITIR' , exact: true});
         this.aplicarCambiosBtn = page.getByRole('button', { name: 'APLICAR CAMBIOS' });
         this.loadingSpinner = page.locator('.loading__spinner');
+        this.dismissBtn = page.frameLocator('#webpack-dev-server-client-overlay').getByRole('button', { name: 'Dismiss' });
 
     }
 }

@@ -79,7 +79,7 @@ export default class CotizacionTabla {
         this.fedPatRow = page.getByText("CFTerceros Completo Premium").getByText("$");
         this.atmRow = page.getByText("C2C Premium").getByText("$");
         this.rusRow = page.getByText("SOSigma Cero").getByText("$");
-        this.triunfoRow = page.getByText("C2FULLC7").getByText("$");
+        this.triunfoRow = page.getByText("C8C8").getByText("$");
 
         this.emitirSancor = page.locator('#emitirButton_12');
         this.emitirRiva = page.locator('#emitirButton_MX');
@@ -88,7 +88,7 @@ export default class CotizacionTabla {
         this.emitirZurich = page.locator('#emitirButton_37');
         this.emitirAtm = page.locator('#emitirButton_C2');
         this.emitirRus = page.locator('#emitirButton_SO');
-        this.emitirTriunfo = page.locator('#emitirButton_C2Full');
+        this.emitirTriunfo = page.locator('#emitirButton_C8');
         this.formaPagoSiguiente = page.locator('[id="select_infoDePago.formaDePago"]');
         this.companiasMap = {
             'sancor': this.emitirSancor,

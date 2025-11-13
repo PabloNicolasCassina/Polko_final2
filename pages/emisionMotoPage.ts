@@ -3,9 +3,9 @@ import CommonButtons from "../components/commonButtons";
 import CotizacionMoto from "../components/moto/cotizacionMoto";
 import CotizacionPersona from "../components/moto/cotizacionPersonaMoto";
 import CotizacionTablaMoto from "../components/moto/cotizacionTablaMoto";
-import EmisionCliente from "../components/moto/emisionCliente";
+import EmisionCliente from "../components/emisionCliente";
 import Companias from "../components/companias";
-import EmisionFormaPagoMoto from "../components/moto/emisionFormaPago"; // Importa la clase renombrada/correcta
+import EmisionFormaPagoMoto from "../components/emisionFormaPago"; // Importa la clase renombrada/correcta
 import EmisionDetalleMoto from "../components/moto/emisionDetalleMoto";
 import EmisionInspeccion from "../components/moto/emisionInspeccion";
 import EmisionFinal from "../components/emisionFinal";

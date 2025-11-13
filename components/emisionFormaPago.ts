@@ -1,28 +1,33 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { get } from "http";
 
-export default class EmisionFormaPagoMoto {
+
+export default class EmisionFormaPago {
     readonly page: Page;
+
     readonly formaPagoSelect: Locator;
     readonly CBU: Locator;
     readonly marcaTarjeta: Locator;
+    readonly marcaTarjetaMoto: Locator;
     readonly nroTarjeta: Locator;
     readonly vencimientoTarjetaMes: Locator;
     readonly vencimientoTarjetaAnio: Locator;
 
+
+
     constructor(page: Page) {
         this.page = page;
-        // Locators de Moto (parecen usar searchbox)
-        this.formaPagoSelect = page.getByRole('searchbox', { name: 'Forma De Pago' });
-        this.CBU = page.locator('input[name="infoDePago.numeroCbu"]');
-        this.marcaTarjeta = page.getByRole('searchbox', { name: 'Marca de la tarjeta' });
-        this.nroTarjeta = page.locator('[id="infoDePago.numeroTarjeta"]');
+        this.formaPagoSelect = page.locator('[id="select_infoDePago.formaDePago"]').or(page.getByRole('searchbox', { name: 'Forma De Pago' }));
+        this.CBU = page.locator('[id="input_infoDePago.numeroCbu"]').or(page.locator('input[name="infoDePago.numeroCbu"]'));
+        this.marcaTarjeta = page.locator('[id="input_infoDePago.marcaTarjeta"]').or(page.locator('[id="select_infoDePago.marcaTarjeta"]')).or(page.getByRole('searchbox', { name: 'Marca de la tarjeta' }));
+        this.marcaTarjetaMoto = page.getByRole('searchbox', { name: 'Marca de la tarjeta' });
+        this.nroTarjeta = page.locator('[id="input_infoDePago.numeroTarjeta"]').or(page.locator('[id="infoDePago.numeroTarjeta"]'));
         this.vencimientoTarjetaMes = page.getByRole('textbox', { name: 'MM', exact: true });
         this.vencimientoTarjetaAnio = page.getByRole('textbox', { name: 'YY', exact: true });
+
+
     }
 
-    /**
-     * Selecciona la opción de pago primaria en el dropdown inicial.
-     */
     public async selectPaymentOption(paymentOption: string) {
         await this.formaPagoSelect.click();
         await this.page.getByRole('option', { name: paymentOption }).click();
@@ -54,7 +59,9 @@ export default class EmisionFormaPagoMoto {
      */
     async fillCBU(cbu?: string) {
         const nroCBU = cbu || "0113941911100007976873";
-        console.log("Rellenando CBU (Moto)...");
+        console.log("Rellenando CBU...");
         await this.CBU.fill(nroCBU);
     }
+
+
 }
