@@ -266,107 +266,191 @@ function esCasoTriunfoSeleccionado(
 // 2. Bucle externo: recorre cada auto del JSON
 for (const auto of data.autos) {
 
-    // 3. Bucle interno: recorre cada compañía que quieres probar
-    for (const compania of companiasPosibles) {
+    if (auto.testType === "Especial_PersonaJuridica") {
 
-        for (const tieneConfigAvanzada of [true, false]) {
+        // --- A. EJECUTA UN SOLO TEST ESPECIAL ---
 
-            const gncOptions = tieneConfigAvanzada ? [true, false] : [false];
+        test(`Cotizar Caso persona jurídica - ${auto.tipoPersona} ${auto.modelo} ${auto.año}`, async ({ page }, testInfo) => {
+            test.setTimeout(1200000);
 
-            for (const tieneGNC of gncOptions) {
+            // 1. Define la configuración EXACTA para este único test
+            const compania = 'triunfo'; // O la compañía que acepte Jurídica
+            const tieneConfigAvanzada = false;
+            const tieneGNC = false;
+            const config = companyBillingConfigs[compania][0]; // Usa la primera config de Sancor
+            const metodoPago = config.validPaymentCombinations[0];
+            const cuota = config.validInstallments[0];
 
-                const facturacionCompania = companyBillingConfigs[compania];
+            // 2. Construye los datos
+            const datosAutoParaTest = buildAutoTestData({
+                autoBase: auto,
+                compania: compania,
+                tieneConfigAvanzada: tieneConfigAvanzada,
+                tieneGNC: tieneGNC,
+                billingConfig: config,
+                paymentCombo: metodoPago,
+                installment: cuota
+            });
+            prepararDatosAuto(datosAutoParaTest, compania); // Añade el flag booleano
 
-                if (!facturacionCompania) {
-                    //throw new Error(`No se encontraron opciones de facturación para la compañía: ${compania}`);
-                    continue; // Si no hay configuraciones, salta a la siguiente compañía
-                }
+            // 3. Inicializa Page Objects
+            dashboardPage = new DashboardPage(page);
+            emisionAutoPage = new EmisionAutoPage(page);
+            commonButtons = new CommonButtons(page);
+            companias = new Companias(page);
+            cotizacionTabla = new CotizacionTabla(page);
 
-                // Filtrar las opciones de facturación según tieneConfigAvanzada
-                let facturacionFiltrada = facturacionCompania;
-                if (!tieneConfigAvanzada) {
-                    // Sin config avanzada: solo Mensual, solo Medios electrónicos, solo 1 cuota
-                    facturacionFiltrada = facturacionCompania
-                        .filter(config => config.type === "Mensual")
-                        .map(config => ({
-                            ...config,
-                            validPaymentCombinations: config.validPaymentCombinations.filter(
-                                metodo => metodo.primary === "Medios electrónicos"
-                            ),
-                            validInstallments: ["1"]
-                        }))
-                        .filter(config => config.validPaymentCombinations.length > 0);
-                }
+            // ... (Tu page.on('request', ...) si es necesario) ...
 
-                for (const tipoFacturacion of facturacionFiltrada) {
-                    for (const metodoPago of tipoFacturacion.validPaymentCombinations) {
-                        for (const cuota of tipoFacturacion.validInstallments) {
-                            let paymentDesc = metodoPago.primary;
-                            if (metodoPago.secondary) {
-                                paymentDesc += ` > ${metodoPago.secondary}`; // Indica la sub-selección
-                            }
-                            if (compania === 'triunfo' && !esCasoTriunfoSeleccionado(
-                                auto,
-                                tieneConfigAvanzada,
-                                tieneGNC,
-                                tipoFacturacion,
-                                metodoPago,
-                                cuota
-                            )) {
-                                continue;
-                            }
-                            // 4. Crea un test para CADA combinación de auto y compañía
-                            test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania} ${tieneConfigAvanzada ? 'con config' : 'sin config'} - ${tieneGNC ? 'con GNC' : 'sin GNC'} - Fact: ${tipoFacturacion.type} - Pago: ${paymentDesc} - Cuotas: ${cuota} - Metodo de pago: ${paymentDesc}`, async ({ page }, testInfo) => {
-                                test.setTimeout(1200000);
-                                const datosAutoParaTest = buildAutoTestData({
-                                    autoBase: auto, // El objeto original del bucle de autos
-                                    compania: compania,
-                                    tieneConfigAvanzada: tieneConfigAvanzada,
-                                    tieneGNC: tieneGNC,
-                                    billingConfig: tipoFacturacion, // El objeto config del bucle de facturación
-                                    paymentCombo: metodoPago, // El objeto paymentCombo del bucle de pagos
-                                    installment: cuota // La cuota del bucle de cuotas
+            // 4. Ejecuta el flujo completo
+            await page.goto("http://localhost:3000/u/cotizar/automotor");
+            await commonButtons.siguienteBtn.waitFor();
+            const valorTabla = await cotizar(test, datosAutoParaTest, compania);
+            await emitir(test, datosAutoParaTest, compania, valorTabla);
+        });
+    } else if (auto.testType === "especialPersonaFisicaRI") {
+        test(`Cotizar Caso persona física RI - ${auto.tipoPersona} ${auto.modelo} ${auto.año}`, async ({ page }, testInfo) => {
+            test.setTimeout(1200000);
+
+            // 1. Define la configuración EXACTA para este único test
+            const compania = 'triunfo'; // O la compañía que acepte Jurídica
+            const tieneConfigAvanzada = false;
+            const tieneGNC = false;
+            const config = companyBillingConfigs[compania][0]; // Usa la primera config de Sancor
+            const metodoPago = config.validPaymentCombinations[0];
+            const cuota = config.validInstallments[0];
+
+            // 2. Construye los datos
+            const datosAutoParaTest = buildAutoTestData({
+                autoBase: auto,
+                compania: compania,
+                tieneConfigAvanzada: tieneConfigAvanzada,
+                tieneGNC: tieneGNC,
+                billingConfig: config,
+                paymentCombo: metodoPago,
+                installment: cuota
+            });
+            prepararDatosAuto(datosAutoParaTest, compania); // Añade el flag booleano
+
+            // 3. Inicializa Page Objects
+            dashboardPage = new DashboardPage(page);
+            emisionAutoPage = new EmisionAutoPage(page);
+            commonButtons = new CommonButtons(page);
+            companias = new Companias(page);
+            cotizacionTabla = new CotizacionTabla(page);
+
+            // ... (Tu page.on('request', ...) si es necesario) ...
+
+            // 4. Ejecuta el flujo completo
+            await page.goto("http://localhost:3000/u/cotizar/automotor");
+            await commonButtons.siguienteBtn.waitFor();
+            const valorTabla = await cotizar(test, datosAutoParaTest, compania);
+            await emitir(test, datosAutoParaTest, compania, valorTabla);
+        });
+        
+    } else {
+
+        // 3. Bucle interno: recorre cada compañía que quieres probar
+        for (const compania of companiasPosibles) {
+
+            for (const tieneConfigAvanzada of [true, false]) {
+
+                const gncOptions = tieneConfigAvanzada ? [true, false] : [false];
+
+                for (const tieneGNC of gncOptions) {
+
+                    const facturacionCompania = companyBillingConfigs[compania];
+
+                    if (!facturacionCompania) {
+                        //throw new Error(`No se encontraron opciones de facturación para la compañía: ${compania}`);
+                        continue; // Si no hay configuraciones, salta a la siguiente compañía
+                    }
+
+                    // Filtrar las opciones de facturación según tieneConfigAvanzada
+                    let facturacionFiltrada = facturacionCompania;
+                    if (!tieneConfigAvanzada) {
+                        // Sin config avanzada: solo Mensual, solo Medios electrónicos, solo 1 cuota
+                        facturacionFiltrada = facturacionCompania
+                            .filter(config => config.type === "Mensual")
+                            .map(config => ({
+                                ...config,
+                                validPaymentCombinations: config.validPaymentCombinations.filter(
+                                    metodo => metodo.primary === "Medios electrónicos"
+                                ),
+                                validInstallments: ["1"]
+                            }))
+                            .filter(config => config.validPaymentCombinations.length > 0);
+                    }
+
+                    for (const tipoFacturacion of facturacionFiltrada) {
+                        for (const metodoPago of tipoFacturacion.validPaymentCombinations) {
+                            for (const cuota of tipoFacturacion.validInstallments) {
+                                let paymentDesc = metodoPago.primary;
+                                if (metodoPago.secondary) {
+                                    paymentDesc += ` > ${metodoPago.secondary}`; // Indica la sub-selección
+                                }
+                                if (compania === 'triunfo' && !esCasoTriunfoSeleccionado(
+                                    auto,
+                                    tieneConfigAvanzada,
+                                    tieneGNC,
+                                    tipoFacturacion,
+                                    metodoPago,
+                                    cuota
+                                )) {
+                                    continue;
+                                }
+                                // 4. Crea un test para CADA combinación de auto y compañía
+                                test(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} con ${compania} ${tieneConfigAvanzada ? 'con config' : 'sin config'} - ${tieneGNC ? 'con GNC' : 'sin GNC'} - Fact: ${tipoFacturacion.type} - Pago: ${paymentDesc} - Cuotas: ${cuota} - Metodo de pago: ${paymentDesc}`, async ({ page }, testInfo) => {
+                                    test.setTimeout(1200000);
+                                    const datosAutoParaTest = buildAutoTestData({
+                                        autoBase: auto, // El objeto original del bucle de autos
+                                        compania: compania,
+                                        tieneConfigAvanzada: tieneConfigAvanzada,
+                                        tieneGNC: tieneGNC,
+                                        billingConfig: tipoFacturacion, // El objeto config del bucle de facturación
+                                        paymentCombo: metodoPago, // El objeto paymentCombo del bucle de pagos
+                                        installment: cuota // La cuota del bucle de cuotas
+                                    });
+                                    console.log('Valor de tieneGNC para este test:', tieneGNC);
+                                    console.log('Valor de datosAutoParaTest.gnc:', datosAutoParaTest.gnc);
+                                    dashboardPage = new DashboardPage(page);
+                                    emisionAutoPage = new EmisionAutoPage(page);
+                                    commonButtons = new CommonButtons(page);
+                                    companias = new Companias(page);
+                                    cotizacionTabla = new CotizacionTabla(page);
+
+                                    // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
+
+                                    page.on('request', async (request) => { // La función debe ser async
+
+                                        // 1. Verificamos si es la llamada a 'sse' y si es un POST
+                                        if (request.url().includes('/sse') && request.method() === 'POST') {
+
+                                            // 2. ¡Lo adjuntamos al reporte!
+                                            await testInfo.attach('SSE POST Payload', {
+                                                body: request.postData() || 'Payload no encontrado (null)', // Manejamos el 'null'
+                                                contentType: 'application/json', // Asumiendo que es JSON
+                                            });
+                                        }
+                                    });
+
+
+                                    await page.goto("http://localhost:3000/u/cotizar/automotor");
+                                    await commonButtons.siguienteBtn.waitFor();
+                                    const valorTabla = await cotizar(test, datosAutoParaTest, compania);
+                                    await emitir(test, datosAutoParaTest, compania, valorTabla);
+
+                                    // 6. Llama a tus métodos del Page Object con los datos ya preparados
+
                                 });
-                                console.log('Valor de tieneGNC para este test:', tieneGNC);
-                                console.log('Valor de datosAutoParaTest.gnc:', datosAutoParaTest.gnc);
-                                dashboardPage = new DashboardPage(page);
-                                emisionAutoPage = new EmisionAutoPage(page);
-                                commonButtons = new CommonButtons(page);
-                                companias = new Companias(page);
-                                cotizacionTabla = new CotizacionTabla(page);
+                            }
 
-                                // 5. ¡IMPORTANTE! Prepara una copia de los datos para este test específico
-
-                                page.on('request', async (request) => { // La función debe ser async
-
-                                    // 1. Verificamos si es la llamada a 'sse' y si es un POST
-                                    if (request.url().includes('/sse') && request.method() === 'POST') {
-
-                                        // 2. ¡Lo adjuntamos al reporte!
-                                        await testInfo.attach('SSE POST Payload', {
-                                            body: request.postData() || 'Payload no encontrado (null)', // Manejamos el 'null'
-                                            contentType: 'application/json', // Asumiendo que es JSON
-                                        });
-                                    }
-                                });
-
-
-                                await page.goto("http://localhost:3000/u/cotizar/automotor");
-                                await commonButtons.siguienteBtn.waitFor();
-                                const valorTabla = await cotizar(test, datosAutoParaTest, compania);
-                                await emitir(test, datosAutoParaTest, compania, valorTabla);
-
-                                // 6. Llama a tus métodos del Page Object con los datos ya preparados
-
-                            });
                         }
+
 
                     }
 
-
                 }
-
-
 
             }
 
@@ -411,7 +495,7 @@ async function emitir(test: any, datosDelTest: any, compania: string, valorTabla
             await emisionAutoPage.emitirFormaPago(datosDelTest);
         });
         await test.step("2- Completar datos del cliente", async () => {
-            await emisionAutoPage.emitirCliente();
+            await emisionAutoPage.emitirCliente(datosDelTest);
         });
         await test.step("3- Completar detalle del auto", async () => {
             await emisionAutoPage.emitirDetalleAuto(datosDelTest);

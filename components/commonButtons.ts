@@ -30,4 +30,8 @@ export default class CommonButtons {
         this.dismissBtn = page.frameLocator('#webpack-dev-server-client-overlay').getByRole('button', { name: 'Dismiss' });
 
     }
+
+    public getOptionLocator(option: string): Locator {
+        return this.page.getByRole("option", { name: option, exact: true });
+    }
 }

@@ -180,9 +180,14 @@ export default class EmisionAutoPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirCliente() {
-        await this.emisionCliente.nosisInput.fill("20386485446")
+    async emitirCliente(datosDelTest : any) {
+        await this.emisionCliente.nosisInput.fill(datosDelTest.cuitDni)
         await this.emisionCliente.buscarBtn.click();
+        if (datosDelTest.cuitDni === "30711392404")
+        {
+            await this.emisionCliente.localidadInput.click();
+            await this.buttons.getOptionLocator(datosDelTest.localidad).click()
+        }
         await expect(this.emisionCliente.localidadInput).not.toBeEmpty();
         await this.buttons.siguienteBtn.click();
     }
@@ -233,7 +238,6 @@ export default class EmisionAutoPage {
         const valorFinal = await this.emisionFinal.getValorCoberturaFinal();
         await expect(valorTabla).toEqual(valorFinal);
         await expect(this.buttons.emitirBtn).toBeEnabled({ timeout: 60000 });
-        await expect(valorTabla).toEqual(valorFinal);
         await this.buttons.emitirBtn.click();
         await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 1200000 });
         await expect(this.emisionFinal.emisionExitosaText.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: 60000 });

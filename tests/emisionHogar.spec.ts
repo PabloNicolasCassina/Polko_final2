@@ -148,7 +148,7 @@ async function emitir(test: any, hogar: any, valorTabla: string | null) {
         });
         await test.step("4- Emisión de póliza", async () => {
 
-            await emisionHogarPage.emitirFinal(hogar.valorTabla);
+            await emisionHogarPage.emitirFinal(valorTabla);
         });
         await test.step("5- Descargar y adjuntar póliza", async () => {
             await descargarYAdjuntarPoliza(emisionHogarPage.page, test.info());

@@ -11,7 +11,8 @@
             "sitImpositiva": "Consumidor final",
             "multi": false,
             "descuento": true,
-            "ceroKm": false
+            "ceroKm": false,
+            "cuitDni": "20386485446"
         },
         {
             "marca": "RENAULT",
@@ -24,7 +25,8 @@
             "sitImpositiva": "Consumidor final",
             "multi": false,
             "descuento": true,
-            "ceroKm": true
+            "ceroKm": true,
+            "cuitDni": "20386485446"
         },
         {
             "marca": "TOYOTA",
@@ -37,7 +39,8 @@
             "sitImpositiva": "Consumidor final",
             "multi": false,
             "descuento": true,
-            "ceroKm": true
+            "ceroKm": true,
+            "cuitDni": "20386485446"
         },
         {
             "marca": "RENAULT",
@@ -50,7 +53,39 @@
             "sitImpositiva": "Consumidor final",
             "multi": false,
             "descuento": true,
-            "ceroKm": false
+            "ceroKm": false,
+            "cuitDni": "20386485446"
+        },
+        {
+            "marca": "RENAULT",
+            "año": "2022",
+            "modelo": "LOGAN",
+            "version": "LOGAN II 1.6 16V INTENS L/19",
+            "c_postal": "5009",
+            "localidad": "(5009) CERRO DE LAS ROSAS",
+            "tipoPersona": "Jurídica",
+            "sitImpositiva": "Responsable inscripto",
+            "multi": false,
+            "descuento": true,
+            "ceroKm": false,
+            "testType": "Especial_PersonaJuridica",
+            "cuitDni": "30711392404"
+        },
+        {
+            "marca": "RENAULT",
+            "año": "2022",
+            "modelo": "LOGAN",
+            "version": "LOGAN II 1.6 16V INTENS L/19",
+            "c_postal": "5009",
+            "localidad": "(5009) CERRO DE LAS ROSAS",
+            "tipoPersona": "Física",
+            "sitImpositiva": "Responsable inscripto",
+            "multi": false,
+            "descuento": true,
+            "ceroKm": false,
+            "testType": "Especial_PersonaFisicaRI",
+            "cuitDni": "30711392404"
         }
+
     ]
 }
