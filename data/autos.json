@@ -83,8 +83,10 @@
             "multi": false,
             "descuento": true,
             "ceroKm": false,
-            "testType": "Especial_PersonaFisicaRI",
-            "cuitDni": "30711392404"
+            "testType": "especialPersonaFisicaRI",
+            "cuitDni": "23343180489",
+            "mail": "test@gmail.com",
+            "telefono": "3512334798"
         }
 
     ]

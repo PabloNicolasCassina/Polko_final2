@@ -112,7 +112,7 @@ export default class EmisionAutoPage {
         if (auto.configAvanzada) {
             await this.cotizacionTabla.configAvanzadaBtn.click();
             await this.cotizacionTabla.fillCompanySpecificAdvancedConfig(auto);
-            
+
             await this.buttons.aplicarCambiosBtn.click();
             await expect(this.buttons.loadingSpinner).toBeHidden({ timeout: 60000 });
         }
@@ -143,7 +143,7 @@ export default class EmisionAutoPage {
                     await this.emisionFormaPago.selectPaymentOption(metodoPagoFinal);
                 }
             } else {
-                
+
                 await this.emisionFormaPago.selectPaymentOption(metodoPagoFinal);
             }
 
@@ -180,14 +180,19 @@ export default class EmisionAutoPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirCliente(datosDelTest : any) {
+    async emitirCliente(datosDelTest: any) {
         await this.emisionCliente.nosisInput.fill(datosDelTest.cuitDni)
         await this.emisionCliente.buscarBtn.click();
-        if (datosDelTest.cuitDni === "30711392404")
-        {
+        if (datosDelTest.cuitDni === "30711392404") {
             await this.emisionCliente.localidadInput.click();
             await this.buttons.getOptionLocator(datosDelTest.localidad).click()
         }
+
+        if (datosDelTest.cuitDni === "23343180489") {
+            await this.emisionCliente.telefonoInput.fill(datosDelTest.telefono);
+            await this.emisionCliente.emailInput.fill(datosDelTest.mail);
+        }
+
         await expect(this.emisionCliente.localidadInput).not.toBeEmpty();
         await this.buttons.siguienteBtn.click();
     }

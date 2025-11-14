@@ -11,6 +11,9 @@ export default class EmisionCliente {
     readonly masculinoRadio: Locator;
     readonly femeninoRadio: Locator;
     readonly localidadInput: Locator;
+    readonly emailInput: Locator;
+    readonly telefonoInput: Locator;
+
 
 
 
@@ -22,6 +25,8 @@ export default class EmisionCliente {
         this.masculinoRadio = page.getByRole('radio', { name: 'Masculino' });
         this.femeninoRadio = page.getByRole('radio', { name: 'Femenino' });
         this.localidadInput = page.locator('[id="select_clientes.0.codigosLocalidad"]').or(page.getByRole('textbox', { name: 'Código postal' }));
+        this.emailInput = page.locator('[id="input_clientes.0.email"]');
+        this.telefonoInput = page.locator('[id="phone_clientes.0.telefono"]');
 
         
     }
