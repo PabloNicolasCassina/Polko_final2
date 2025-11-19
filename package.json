@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "auth": "powershell -Command \"Remove-Item -Path 'C:\\Polko\\Polko_final\\.auth\\userPre.json' -ErrorAction SilentlyContinue; playwright test tests/auth.setup.pre.ts --headed\""
+    "auth": "powershell -Command \"Remove-Item -Path 'E:\\Polko\\Polko_final2\\.auth\\userPre.json' -ErrorAction SilentlyContinue; playwright test tests/auth.setup.pre.ts --headed\""
   },
   "keywords": [],
   "author": "",

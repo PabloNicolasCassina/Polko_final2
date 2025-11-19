@@ -1,12 +1,12 @@
+/// <reference types="node" />
 import { Page, Locator, expect } from "@playwright/test";
 import CommonButtons from "../components/commonButtons";
 import CotizacionEmpleador from "../components/ART/cotizacionEmpleador";
 import CotizacionEmpleado from "../components/ART/cotizacionEmpleado";
 import DashboardPage from "./dashboardPage";
 import TablaUltCotizaciones from "../components/ART/tablaUltCotizaciones";
-import TablaEmision from "../components/ART/tablaEmision";
+import TablaEmision, { CompanyKey } from "../components/ART/tablaEmision";
 import EmisionFinal from "../components/emisionFinal";
-import { get } from "http";
 import path from "path";
 
 
@@ -72,7 +72,7 @@ export default class EmisionArtPage {
 
         await expect(this.cotizacionEmpleado.resultadoCotizacion).toBeVisible();
         await this.cotizacionEmpleado.btnVerCotizacion.click();
-        await this.dashboardPage.retirarFondos.waitFor();
+        await expect (this.dashboardPage.retirarFondos).toBeVisible({ timeout: 1200000 });
 
     }
 
@@ -83,16 +83,25 @@ export default class EmisionArtPage {
         await this.buttons.emitirBtn.first().click();
     }
 
-    async seleccionarCobertura()
+    async seleccionarCobertura(compania?: CompanyKey)
     {
         await this.buttons.loadingSpinner.waitFor({ state: 'hidden', timeout: 60000 });
+        if (compania) {
+            const companyButton = this.tablaEmision.getCompanyButton(compania);
+            await expect(companyButton).toBeVisible({ timeout: 60000 });
+            await companyButton.scrollIntoViewIfNeeded();
+            await companyButton.click();
+            return;
+        }
+
         if (await this.tablaEmision.regimenEspecial.isVisible()) {
             await this.buttons.emitirBtn.first().click();
-        } else {
-            await this.tablaEmision.masBtn.click();
-            await this.tablaEmision.menosBtn.click();
-            await this.buttons.emitirBtn.first().click();
+            return;
         }
+
+        await this.tablaEmision.masBtn.click();
+        await this.tablaEmision.menosBtn.click();
+        await this.buttons.emitirBtn.first().click();
     }
 
     

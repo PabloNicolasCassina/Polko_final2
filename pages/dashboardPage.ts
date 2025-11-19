@@ -39,7 +39,7 @@ export default class DashboardPage {
     }
 
     async ingreso() {
-        await this.page.goto("http://localhost:3000/u/dashboard");
+        //await this.page.goto("http://localhost:3000/u/dashboard");
         await this.page.waitForLoadState("networkidle");
         await expect(this.retirarFondos).toBeVisible();
     }

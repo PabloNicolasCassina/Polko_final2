@@ -1,16 +1,26 @@
+/// <reference types="node" />
 import { test, expect, type TestInfo, type Page, Download } from "@playwright/test";
-import path from 'path'; // Se agrega la importación de 'path'
-import fs from 'fs';     // Se agrega la importación de 'fs'
+import fs from 'fs';
 import DashboardPage from "../pages/dashboardPage";
 import EmisionArtPage from "../pages/emisionArtPage";
 import data from "../data/art.json";
 import CommonButtons from "../components/commonButtons";
+import { CompanyKey, COMPANY_NAMES } from "../components/ART/tablaEmision";
 import { getRandomInt } from "../helpers/dataUtils";
 
-let dashboardPage: DashboardPage;
-let emisionArtPage: EmisionArtPage;
-let commonButtons: CommonButtons;
-let buttons: CommonButtons;
+type EmisionDependencies = {
+    emisionArtPage: EmisionArtPage;
+    commonButtons: CommonButtons;
+};
+
+function buildEmisionDependencies(page: Page): EmisionDependencies {
+    return {
+        emisionArtPage: new EmisionArtPage(page),
+        commonButtons: new CommonButtons(page),
+    };
+}
+
+test.setTimeout(120000);
 
 test.beforeEach('Reutilizar el estado de autenticación de Facebook', async ({ page }, testInfo) => {
     // El hook beforeEach ahora solo se encarga de la configuración común que NO depende de los parámetros del test.
@@ -82,33 +92,47 @@ test.afterEach(async ({ page }, testInfo) => {
 
 
 
-for (const artData of data.casos) {
-    test(`Cotización ART - Empleador: ${artData.empleador} - CUIT: ${artData.cuit} - Regimen: ${artData.regimen} - Masa salarial/Horas semanales: ${artData.masaSalarial || artData.horasSemanales}`, async ({ page }) => {
-        commonButtons = new CommonButtons(page);
-        emisionArtPage = new EmisionArtPage(page);
+test.describe.parallel("Cotizaciones ART", () => {
+    for (const artData of data.casos) {
+        test(`Cotización ART - Empleador: ${artData.empleador} - CUIT: ${artData.cuit} - Regimen: ${artData.regimen} - Masa salarial/Horas semanales: ${artData.masaSalarial || artData.horasSemanales}`, async ({ page }) => {
+            const deps = buildEmisionDependencies(page);
 
-        await page.goto("http://localhost:3000/u/cotizar/art");
-        await commonButtons.siguienteBtn.waitFor();
+            await page.goto("http://localhost:3000/u/cotizar/art");
+            await deps.commonButtons.siguienteBtn.waitFor();
 
-        await cotizar(test, artData);
+            await cotizar(test, artData, deps);
 
-    });
-}
+        });
+    }
+});
 
 test("Emision ART - Flujo completo", async ({ page }) => {
 
-    commonButtons = new CommonButtons(page);
-    emisionArtPage = new EmisionArtPage(page);
-    dashboardPage = new DashboardPage(page);
+    const deps = buildEmisionDependencies(page);
+    const dashboardPage = new DashboardPage(page);
     await page.goto("http://localhost:3000/u/dashboard");
     await dashboardPage.retirarFondos.waitFor();
 
-    await emitir(test);
+    await emitir(test, deps);
+});
+
+test.describe.parallel("Emision ART - Todas las compañías", () => {
+    for (const compania of COMPANY_NAMES) {
+        test(`Emision ART - ${compania}`, async ({ page }) => {
+            const deps = buildEmisionDependencies(page);
+            const dashboardPage = new DashboardPage(page);
+
+            await page.goto("http://localhost:3000/u/dashboard");
+            await dashboardPage.retirarFondos.waitFor();
+            await emitir(test, deps, compania);
+        });
+    }
 });
 
 
 
-async function cotizar(test: any, art: any) {
+async function cotizar(test: any, art: any, deps: EmisionDependencies) {
+    const { emisionArtPage } = deps;
     const datosDelTest = { ...art }; // Crea la copia directamente
 
     datosDelTest.cantEmpleados = getRandomInt(1, 200).toString();
@@ -133,7 +157,8 @@ async function cotizar(test: any, art: any) {
     return datosDelTest;
 }
 
-async function emitir(test: any) {
+async function emitir(test: any, deps: EmisionDependencies, compania?: CompanyKey) {
+    const { emisionArtPage, commonButtons } = deps;
     await test.step(`📝Flujo emisión póliza`, async () => {
 
         await test.step("3- Emitir la cotización seleccionada desde tabla ult cotizaciones", async () => {
@@ -141,7 +166,7 @@ async function emitir(test: any) {
         });
 
         await test.step("4- Seleccionar cobertura", async () => {
-            await emisionArtPage.seleccionarCobertura();
+            await emisionArtPage.seleccionarCobertura(compania);
         });
 
         await test.step("5- Detalles del Asegurado", async () => {
