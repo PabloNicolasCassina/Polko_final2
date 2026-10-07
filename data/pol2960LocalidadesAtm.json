@@ -1,0 +1,32 @@
+{
+  "vehiculoBase": {
+    "marca": "RENAULT",
+    "año": "2022",
+    "modelo": "LOGAN",
+    "version": "LOGAN II 1.6 16V INTENS L/19",
+    "tipoPersona": "Física",
+    "sitImpositiva": "Consumidor final",
+    "ceroKm": false,
+    "gnc": false
+  },
+  "casos": {
+    "C1": {
+      "c_postal": "4200",
+      "localidad": "(4200) CONTRERAS ESTABLECIMIENTO",
+      "nombreLocalidadATMEsperado": "CONTRERAS ESTABLECIMIENTO",
+      "descripcion": "CP 4200 sin mapeo ATM — fallback NombreLocalidad"
+    },
+    "C2": {
+      "c_postal": "4200",
+      "localidad": "(4200) VILLA CONSTANTINA",
+      "nombreLocalidadATMEsperado": "VILLA CONSTANTINA",
+      "descripcion": "CP 4200 con mapeo canónico ATM — regresión"
+    },
+    "C3": {
+      "c_postal": "3540",
+      "localidad": "(3540) VILLA ANGELA",
+      "nombreLocalidadATMEsperado": "VILLA ANGELA",
+      "descripcion": "Villa Ángela CP 3540 (no 3400) — cotizar + emitir"
+    }
+  }
+}

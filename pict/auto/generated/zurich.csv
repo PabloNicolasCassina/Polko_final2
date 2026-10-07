@@ -1,0 +1,7 @@
+Uso_vehiculo	Tipo_persona	Tipo_facturacion	Forma_pago	Forma_pago_detalle	Cantidad_cuotas	Descuento
+Particular	Fisica	Mensual	Efectivo	Ninguno	1	0
+Particular	Fisica	Mensual	Medios_electronicos	Debito_CBU	1	0
+Particular	Fisica	Mensual	Medios_electronicos	Debito_CBU	1	15
+Particular	Fisica	Mensual	Efectivo	Ninguno	1	15
+Particular	Fisica	Mensual	Medios_electronicos	Tarjeta_credito	1	0
+Particular	Fisica	Mensual	Medios_electronicos	Tarjeta_credito	1	15

@@ -1,0 +1,52 @@
+{
+  "retiros": [
+    {
+      "tipo": "total",
+      "descripcion": "Retiro de fondos total disponible",
+      "cbu": "0113941911100007976873",
+      "alias": "test.retiro.polko",
+      "titular": "Juan Pérez",
+      "cuit": "20422581864",
+      "montoEsperado": "disponible_total"
+    },
+    {
+      "tipo": "parcial",
+      "descripcion": "Retiro de fondos parcial",
+      "cbu": "0113941911100007976873",
+      "alias": "test.retiro.polko",
+      "titular": "Juan Pérez",
+      "cuit": "20422581864",
+      "montoPersonalizado": "5000"
+    }
+  ],
+  "bancosValidos": [
+    {
+      "nombre": "Galicia",
+      "codigo": "007"
+    },
+    {
+      "nombre": "Santander Río",
+      "codigo": "072"
+    },
+    {
+      "nombre": "Banco Nación",
+      "codigo": "011"
+    },
+    {
+      "nombre": "Macro",
+      "codigo": "285"
+    }
+  ],
+  "estadosMovimiento": [
+    "Pendiente",
+    "Acreditado",
+    "En proceso",
+    "Rechazado"
+  ],
+  "tiposMovimiento": [
+    "Emisión",
+    "Retiro",
+    "Ajuste",
+    "Bonificación"
+  ]
+}

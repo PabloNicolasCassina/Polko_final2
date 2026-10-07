@@ -1,0 +1,8 @@
+# Pairwise model: Configuracion avanzada auto - Mercantil Andina
+Tipo_persona: Fisica
+Tipo_facturacion: Mensual, Cuatrimestral
+Forma_pago: Tarjeta_credito, Debito_CBU, Tarjeta_debito, Efectivo
+Cantidad_cuotas: 1, 4
+Descuento: 0, 25
+
+IF [Tipo_facturacion] = "Mensual" THEN [Cantidad_cuotas] = 1;

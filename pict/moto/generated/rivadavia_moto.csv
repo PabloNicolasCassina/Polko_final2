@@ -1,0 +1,20 @@
+Ajuste_automatico	Uso_vehiculo	Tipo_persona	Tipo_facturacion	Forma_pago_detalle	Cantidad_cuotas	Descuento
+Aplicar 30%	Transporte de Bienes	Juridica	Semestral	Debito_CBU	1	0
+Aplicar 10%	Transporte de Bienes	Fisica	Trimestral	Tarjeta_credito	3	15
+Aplicar 10%	Servicios Especiales (Excepto Pick-Up)	Fisica	Semestral	Efectivo	6	0
+Aplicar 20%	Particular	Juridica	Mensual	Efectivo	1	15
+Aplicar 30%	Servicios Especiales y Escolares (Pick-up)	Fisica	Semestral	Debito_CBU	6	15
+Aplicar 40%	Particular	Juridica	Trimestral	Tarjeta_credito	3	0
+Aplicar 20%	Servicios Especiales y Escolares (Pick-up)	Fisica	Trimestral	Tarjeta_credito	3	0
+Aplicar 40%	Servicios Especiales y Escolares (Pick-up)	Fisica	Mensual	Efectivo	1	15
+Aplicar 20%	Transporte de Bienes	Juridica	Semestral	Debito_CBU	6	0
+Aplicar 30%	Particular	Fisica	Trimestral	Debito_CBU	3	0
+Aplicar 10%	Particular	Juridica	Mensual	Tarjeta_credito	1	0
+Aplicar 40%	Transporte de Bienes	Fisica	Semestral	Tarjeta_credito	6	0
+Aplicar 40%	Particular	Juridica	Semestral	Debito_CBU	6	0
+Aplicar 20%	Servicios Especiales (Excepto Pick-Up)	Juridica	Mensual	Debito_CBU	1	15
+Aplicar 30%	Servicios Especiales (Excepto Pick-Up)	Juridica	Trimestral	Efectivo	3	0
+Aplicar 10%	Servicios Especiales y Escolares (Pick-up)	Juridica	Trimestral	Debito_CBU	1	15
+Aplicar 30%	Servicios Especiales (Excepto Pick-Up)	Juridica	Semestral	Tarjeta_credito	6	0
+Aplicar 30%	Transporte de Bienes	Juridica	Mensual	Efectivo	1	15
+Aplicar 40%	Servicios Especiales (Excepto Pick-Up)	Juridica	Trimestral	Efectivo	3	0

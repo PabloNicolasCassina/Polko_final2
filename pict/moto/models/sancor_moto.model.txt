@@ -1,0 +1,7 @@
+# Pairwise model: Configuracion avanzada auto - Sancor
+Uso_vehiculo: Particular
+Tipo_persona: Fisica, Juridica
+Tipo_facturacion: Anual
+Forma_pago_detalle: Tarjeta_credito, Debito_CBU
+Cantidad_cuotas: 1
+Descuento: 0

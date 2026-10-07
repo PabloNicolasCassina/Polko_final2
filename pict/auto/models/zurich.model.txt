@@ -1,0 +1,11 @@
+# Pairwise model: Configuracion avanzada auto - Zurich
+Uso_vehiculo: Particular
+Tipo_persona: Fisica
+Tipo_facturacion: Mensual
+Forma_pago: Medios_electronicos, Efectivo
+Forma_pago_detalle: Ninguno, Tarjeta_credito, Debito_CBU
+Cantidad_cuotas: 1
+Descuento: 0, 15
+
+IF [Forma_pago] = "Medios_electronicos" THEN [Forma_pago_detalle] IN {"Tarjeta_credito", "Debito_CBU"};
+IF [Forma_pago] <> "Medios_electronicos" THEN [Forma_pago_detalle] = "Ninguno";

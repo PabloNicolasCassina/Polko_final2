@@ -1,0 +1,12 @@
+# Pairwise model: Configuracion avanzada auto - Rivadavia
+Uso_vehiculo: Particular
+Tipo_persona: Fisica
+Tipo_facturacion: Mensual, Trimestral, Semestral
+Forma_pago: Medios_electronicos
+Forma_pago_detalle: Tarjeta_credito, Debito_CBU
+Cantidad_cuotas: 1, 3, 6
+Descuento: 0, 15
+
+IF [Tipo_facturacion] = "Mensual" THEN [Cantidad_cuotas] = 1;
+IF [Tipo_facturacion] = "Trimestral" THEN [Cantidad_cuotas] = 3;
+IF [Tipo_facturacion] = "Semestral" THEN [Cantidad_cuotas] <> 3;

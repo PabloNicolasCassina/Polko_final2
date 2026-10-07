@@ -1,0 +1,28 @@
+{
+    "microseguros": [
+        {
+            "codigoPostal": "5000",
+            "coberturas": ["48"],
+            "descripcionBicicleta": "Bicicleta Mountain Bike",
+            "dni": "38648544",
+            "formaPago": "Efectivo",
+            "documentoEsperado": "Cupón de Pago"
+        },
+        {
+            "codigoPostal": "5000",
+            "coberturas": ["48"],
+            "descripcionBicicleta": "Bicicleta Mountain Bike",
+            "dni": "38648544",
+            "formaPago": "Tarjeta de crédito",
+            "documentoEsperado": "Factura"
+        },
+        {
+            "codigoPostal": "5000",
+            "coberturas": ["48"],
+            "descripcionBicicleta": "Bicicleta Mountain Bike",
+            "dni": "38648544",
+            "formaPago": "Débito por CBU",
+            "documentoEsperado": "Factura"
+        }
+    ]
+}

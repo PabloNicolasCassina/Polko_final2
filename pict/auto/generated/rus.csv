@@ -1,0 +1,13 @@
+Uso_vehiculo	Tipo_persona	Tipo_facturacion	Forma_pago	Cantidad_cuotas	Descuento	Ajuste_automatico
+Particular	Fisica	Mensual	Debito_CBU	1	0	Aplicar_20
+Particular	Juridica	Mensual	Efectivo	1	15	No_aplicar
+Especial	Fisica	Mensual	Tarjeta_credito	1	15	Aplicar_30
+Comercial	Juridica	Mensual	Tarjeta_credito	1	0	No_aplicar
+Especial	Fisica	Mensual	Efectivo	1	0	Aplicar_40
+Comercial	Juridica	Mensual	Debito_CBU	1	15	Aplicar_30
+Particular	Fisica	Mensual	Efectivo	1	0	Aplicar_30
+Comercial	Juridica	Mensual	Efectivo	1	15	Aplicar_20
+Especial	Fisica	Mensual	Debito_CBU	1	15	No_aplicar
+Especial	Juridica	Mensual	Tarjeta_credito	1	0	Aplicar_20
+Particular	Juridica	Mensual	Tarjeta_credito	1	15	Aplicar_40
+Comercial	Fisica	Mensual	Debito_CBU	1	0	Aplicar_40

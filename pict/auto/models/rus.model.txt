@@ -1,0 +1,8 @@
+# Pairwise model: Configuracion avanzada auto - RUS
+Uso_vehiculo: Particular, Comercial, Especial
+Tipo_persona: Fisica, Juridica
+Tipo_facturacion: Mensual
+Forma_pago: Tarjeta_credito, Debito_CBU, Efectivo
+Cantidad_cuotas: 1
+Descuento: 0, 15
+Ajuste_automatico: No_aplicar, Aplicar_20, Aplicar_30, Aplicar_40

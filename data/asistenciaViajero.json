@@ -1,0 +1,50 @@
+{
+    "clienteSartori": {
+        "cuitDni": "27381618426",
+        "sexo": "Femenino",
+        "calle": "Calle Falsa",
+        "numero": "123",
+        "telefono": "+543512334798",
+        "email": "carla.sartori@test.com",
+        "emergenciaNombre": "Juan",
+        "emergenciaApellido": "Oviedo",
+        "emergenciaTelefono": "+543511112233"
+    },
+    "clienteOviedo": {
+        "cuitDni": "20386485446",
+        "sexo": "Masculino",
+        "calle": "Calle Falsa",
+        "numero": "123",
+        "telefono": "+543512334798",
+        "email": "oviedo@test.com",
+        "emergenciaNombre": "Carla",
+        "emergenciaApellido": "Sartori",
+        "emergenciaTelefono": "+543511112233"
+    },
+    "casos": [
+        {
+            "id": "TC-AV-AR",
+            "destino": "argentina",
+            "edad": "30",
+            "diasPeriodo": 5,
+            "formaPago": "Transferencia",
+            "clienteKey": "clienteSartori"
+        },
+        {
+            "id": "TC-AV-US",
+            "destino": "estados_unidos",
+            "edad": "30",
+            "diasPeriodo": 5,
+            "formaPago": "Transferencia",
+            "clienteKey": "clienteSartori"
+        },
+        {
+            "id": "TC-AV-MULTI",
+            "destino": "multiples",
+            "edad": "30",
+            "diasPeriodo": 5,
+            "formaPago": "Transferencia",
+            "clienteKey": "clienteOviedo"
+        }
+    ]
+}

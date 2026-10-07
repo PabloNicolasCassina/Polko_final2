@@ -1,0 +1,6 @@
+# Pairwise model: Configuracion avanzada auto - ATM
+Tipo_persona: Fisica, Juridica
+Forma_pago: Tarjeta_credito, Debito_CBU, Efectivo
+Descuento: 0, 20
+
+

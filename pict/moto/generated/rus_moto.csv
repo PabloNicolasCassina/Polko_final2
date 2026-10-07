@@ -1,0 +1,10 @@
+Ajuste_automatico	Uso_vehiculo	Tipo_persona	Forma_pago	Cantidad_cuotas	Descuento
+Aplicar 20%	Comercial	Fisica	Debito_CBU	1	0
+No aplicar	Comercial	Juridica	Tarjeta_credito	1	15
+No aplicar	Particular	Fisica	Tarjeta_credito	1	0
+Aplicar 30%	Particular	Fisica	Tarjeta_credito	1	15
+No aplicar	Particular	Juridica	Debito_CBU	1	15
+Aplicar 40%	Comercial	Fisica	Debito_CBU	1	0
+Aplicar 30%	Comercial	Juridica	Debito_CBU	1	0
+Aplicar 40%	Particular	Juridica	Tarjeta_credito	1	15
+Aplicar 20%	Particular	Juridica	Tarjeta_credito	1	15

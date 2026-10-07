@@ -1,0 +1,20 @@
+{
+    "sancor": { 
+        "usoVehiculo": "Particular" 
+    },
+    "rus": { 
+        "usoVehiculo": "Particular", 
+        "ajusteAutomatico": "No aplicar"
+    },
+    "rivadavia": { 
+        "usoVehiculo": "Particular",
+        "ajusteAutomatico": "Aplicar 20%",
+        "tipoFacturacion": "Trimestral",
+        "cantCuotas": 3
+
+    },
+    "atm": {
+        "formaPago": "Tarjeta de Crédito",
+        "ajusteAutomatico": "Aplicar 10%"
+    }
+}

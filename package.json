@@ -1,0 +1,37 @@
+{
+  "name": "polko_final",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "auth": "AUTH_PATH='.auth/userPre.json'; [ -f \"$AUTH_PATH\" ] && rm -f \"$AUTH_PATH\"; playwright test tests/auth.setup.pre.ts --debug",
+    "auth:sancor": "AUTH_PATH='.auth/sancorPortal.json'; [ -f \"$AUTH_PATH\" ] && rm -f \"$AUTH_PATH\"; playwright test tests/sancorAuth.pre.ts --project=setup-sancor --debug",
+    "codegen": "playwright codegen --load-storage=.auth/userPre.json http://localhost:3000/u/dashboard",
+    "test:regresion": "playwright test tests/regresionFinal.spec.ts --project=chromium",
+    "allure:clean": "rm -rf allure-results allure-report",
+    "allure:generate": "allure generate allure-results -o allure-report --clean",
+    "allure:open": "allure open allure-report",
+    "allure:report": "npm run allure:generate && npm run allure:open",
+    "jira:report": "npx ts-node scripts/reportToJira.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.7.0",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/pdfjs-dist": "^2.10.377",
+    "allure-commandline": "^2.36.0",
+    "allure-playwright": "^3.4.5",
+    "dotenv": "^17.2.3",
+    "pdfjs-dist": "^5.4.624",
+    "playwright": "^1.57.0",
+    "playwright-qase-reporter": "^2.7.0"
+  },
+  "dependencies": {
+    "csv-parse": "^6.2.1",
+    "pdf-parse": "^2.4.5"
+  }
+}

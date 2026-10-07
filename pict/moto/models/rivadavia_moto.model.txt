@@ -1,0 +1,13 @@
+# Pairwise model: Configuracion avanzada auto - Rivadavia
+Ajuste_automatico: Aplicar 10%, Aplicar 20%, Aplicar 30%, Aplicar 40%
+Uso_vehiculo: Particular, Transporte de Bienes, Servicios Especiales (Excepto Pick-Up), Servicios Especiales y Escolares (Pick-up)
+Tipo_persona: Fisica, Juridica
+Tipo_facturacion: Mensual, Trimestral, Semestral
+Forma_pago_detalle: Tarjeta_credito, Debito_CBU, Efectivo
+Cantidad_cuotas: 1, 3, 6
+Descuento: 0, 15
+
+IF [Tipo_facturacion] = "Mensual" THEN [Cantidad_cuotas] = 1;
+IF [Tipo_facturacion] = "Trimestral" THEN [Cantidad_cuotas] IN {1,3};
+IF [Tipo_facturacion] = "Semestral" THEN [Cantidad_cuotas] IN {1,6};
+

@@ -1,0 +1,52 @@
+{
+    "motos": [
+        {
+            "marca": "BENELLI",
+            "año": "2022",
+            "version": "LEONCINO 250",
+            "c_postal": "5000",
+            "localidad": "CORDOBA",
+            "esCeroKm": false,
+            "tipoPersona": "Física",
+            "sitImpositiva": "Consumidor final",
+            "multi": false,
+            "descuento": true
+        },
+        {
+            "marca": "BENELLI",
+            "año": "2026",
+            "version": "LEONCINO 250",
+            "c_postal": "5000",
+            "localidad": "CORDOBA",
+            "esCeroKm": true,
+            "tipoPersona": "Física",
+            "sitImpositiva": "Consumidor final",
+            "multi": false,
+            "descuento": true
+        },
+        {
+            "marca": "BRAVA",
+            "año": "2008",
+            "version": "ALTINO 150",
+            "c_postal": "5000",
+            "localidad": "CORDOBA",
+            "esCeroKm": false,
+            "tipoPersona": "Física",
+            "sitImpositiva": "Consumidor final",
+            "multi": false,
+            "descuento": true
+        },
+        {
+            "marca": "DUCATI",
+            "año": "2026",
+            "version": "1103 PANIGALE V4 S",
+            "c_postal": "5000",
+            "localidad": "CORDOBA",
+            "esCeroKm": true,
+            "tipoPersona": "Física",
+            "sitImpositiva": "Consumidor final",
+            "multi": false,
+            "descuento": true
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+# Pairwise model: Configuracion avanzada auto - Sancor
+Uso_vehiculo: Particular
+Tipo_persona: Fisica
+Tipo_facturacion: Anual, Mensual
+Forma_pago: Medios_electronicos, Tarjeta_credito, Debito_CBU, Efectivo
+Forma_pago_detalle: Ninguno, Tarjeta_credito, Debito_CBU
+Cantidad_cuotas: 1
+Descuento: 0, 15
+
+IF [Tipo_facturacion] = "Anual" THEN [Forma_pago] IN {"Tarjeta_credito", "Debito_CBU", "Efectivo"};
+IF [Tipo_facturacion] = "Mensual" THEN [Forma_pago] = "Medios_electronicos";
+IF [Forma_pago] = "Medios_electronicos" THEN [Forma_pago_detalle] IN {"Tarjeta_credito", "Debito_CBU"};
+IF [Forma_pago] <> "Medios_electronicos" THEN [Forma_pago_detalle] = "Ninguno";

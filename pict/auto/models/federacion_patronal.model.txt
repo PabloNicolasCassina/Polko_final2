@@ -1,0 +1,6 @@
+# Pairwise model: Configuracion avanzada auto - Federacion Patronal
+Tipo_persona: Fisica
+Tipo_facturacion: Mensual
+Forma_pago: Tarjeta_credito, Debito_CBU, Efectivo
+Cantidad_cuotas: 1
+Descuento: 0

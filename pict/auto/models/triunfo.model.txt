@@ -1,0 +1,13 @@
+# Pairwise model: Configuracion avanzada auto - Triunfo
+Uso_vehiculo: Particular
+Tipo_persona: Fisica
+Tipo_facturacion: Mensual, Trimestral
+Forma_pago: Medios_electronicos, Efectivo
+Forma_pago_detalle: Ninguno, Tarjeta_credito, Debito_CBU
+Cantidad_cuotas: 1, 2, 3
+Descuento: 0, 20
+
+IF [Tipo_facturacion] = "Mensual" THEN [Forma_pago] = "Medios_electronicos";
+IF [Tipo_facturacion] = "Mensual" THEN [Cantidad_cuotas] = 1;
+IF [Forma_pago] = "Medios_electronicos" THEN [Forma_pago_detalle] IN {"Tarjeta_credito", "Debito_CBU"};
+IF [Forma_pago] <> "Medios_electronicos" THEN [Forma_pago_detalle] = "Ninguno"; 

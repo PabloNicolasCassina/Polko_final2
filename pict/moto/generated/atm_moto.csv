@@ -1,0 +1,7 @@
+Tipo_persona	Forma_pago	Descuento
+Juridica	Debito_CBU	0
+Juridica	Tarjeta_credito	20
+Fisica	Debito_CBU	20
+Fisica	Efectivo	20
+Fisica	Tarjeta_credito	0
+Juridica	Efectivo	0
