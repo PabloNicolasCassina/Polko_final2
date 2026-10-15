@@ -1,6 +1,7 @@
 import { Page, Locator, expect } from "@playwright/test";
 import CotizacionAsistenciaViajero from "../components/ap/cotizacionAsistenciaViajero";
 import CommonButtons from "../components/commonButtons";
+import { isCompactViewport } from "../helpers/viewport";
 
 export type DestinoAsistenciaViajero = "argentina" | "estados_unidos" | "multiples";
 
@@ -115,7 +116,7 @@ export default class EmisionAsistenciaViajeroPage {
             for (let i = 0; i < monthsAhead; i++) {
                 const next = calendar.locator(".mantine-CalendarHeader-calendarHeaderControl").last();
                 await expect(next).toBeVisible({ timeout: 5000 });
-                await next.click();
+                await this.clickMobileSeguro(next);
             }
 
             const enabledDays = calendar
@@ -140,8 +141,8 @@ export default class EmisionAsistenciaViajeroPage {
                 continue;
             }
 
-            await enabledDays.nth(idx1).click();
-            await enabledDays.nth(idx2).click();
+            await this.clickMobileSeguro(enabledDays.nth(idx1));
+            await this.clickMobileSeguro(enabledDays.nth(idx2));
             await this.page.keyboard.press("Escape").catch(() => {});
             rangosFechasUsados.add(key);
             return key;
@@ -150,6 +151,18 @@ export default class EmisionAsistenciaViajeroPage {
         throw new Error(
             `No se pudo elegir un rango aleatorio de ${diasPeriodo} días sin repetir fechas usadas`
         );
+    }
+
+    /**
+     * En mobile el calendario abre hacia arriba (su parte superior queda bajo el header sticky) y las
+     * cards de planes van en un carrusel horizontal: el click por coordenadas no llega al target.
+     */
+    private async clickMobileSeguro(target: Locator): Promise<void> {
+        if (isCompactViewport(this.page)) {
+            await target.dispatchEvent("click");
+            return;
+        }
+        await target.click();
     }
 
     async cotizar() {
@@ -167,9 +180,9 @@ export default class EmisionAsistenciaViajeroPage {
             .getByRole("button", { name: /^Emitir$/i })
             .first();
         if (await planPreferido.isVisible().catch(() => false)) {
-            await planPreferido.click();
+            await this.clickMobileSeguro(planPreferido);
         } else {
-            await this.emitirPlanBtn.click();
+            await this.clickMobileSeguro(this.emitirPlanBtn);
         }
         await expect(this.formaPagoSelect).toBeVisible({ timeout: 60000 });
     }
@@ -232,11 +245,14 @@ export default class EmisionAsistenciaViajeroPage {
         await expect(locSearch).toBeVisible({ timeout: 15000 });
         const locVal = await locSearch.inputValue().catch(() => "");
         if (!locVal?.trim()) {
-            await locSearch.click();
-            const opt = this.page.getByRole("option").first();
-            await expect(opt).toBeVisible({ timeout: 10000 });
-            await opt.click();
-            await expect(locSearch).not.toHaveValue("", { timeout: 10000 });
+            // Las localidades llegan async tras el CP y un re-render puede vaciar la elección: se reintenta.
+            await expect(async () => {
+                await locSearch.click();
+                const opt = this.page.getByRole("option").first();
+                await expect(opt).toBeVisible({ timeout: 10000 });
+                await opt.click();
+                await expect(locSearch).not.toHaveValue("", { timeout: 5000 });
+            }).toPass({ timeout: 60000 });
         }
 
         await this.page.locator("input[name='nombre_contacto_emergencia']").fill(cliente.emergenciaNombre);

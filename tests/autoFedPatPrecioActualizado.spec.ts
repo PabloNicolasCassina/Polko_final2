@@ -26,8 +26,8 @@ import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 
 test.describe.configure({ mode: "parallel" });
 
-test.afterEach(async ({}, testInfo) => {
-    await attachBackendLogsOnFailure(testInfo);
+test.afterEach(async ({ page }, testInfo) => {
+    await attachBackendLogsOnFailure(testInfo, page);
 });
 
 const PRICE_UPDATED_BODY = {

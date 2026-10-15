@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from "@playwright/test";
 import CommonButtons from "../commonButtons";
+import { isCompactViewport } from "../../helpers/viewport";
 import { get } from "http";
 
 
@@ -477,6 +478,18 @@ export default class CotizacionTabla {
         await this.page.locator('button[data-selected="true"]').click();
     }
 
+    /** En compacto la config avanzada es un drawer: Escape lo cierra junto con el calendario. */
+    private async cerrarCalendarioFechaVigencia(): Promise<void> {
+        const selectedDay = this.page.locator('button[data-selected="true"]');
+        if (await selectedDay.isVisible().catch(() => false)) {
+            await selectedDay.click();
+            return;
+        }
+        if (!isCompactViewport(this.page)) {
+            await this.page.keyboard.press('Escape');
+        }
+    }
+
     public async clickBtnPlus(compania: string): Promise<void> {
         const key = compania.toLowerCase();
         const btnPlus = this.btnPlusMap[key];
@@ -881,7 +894,7 @@ export default class CotizacionTabla {
 
     public async fillRus(auto: any) {
         await this.fechaVigencia.fill(this.setFechaVigencia());
-        await this.page.keyboard.press('Escape');
+        await this.cerrarCalendarioFechaVigencia();
         await this.aplicarDescuento(auto);
         await this.setUsoVehiculo(auto);
         await this.setAjusteAutomatico(auto);
@@ -897,7 +910,7 @@ export default class CotizacionTabla {
 
     public async fillATM(auto: any) {
         await this.fechaVigencia.fill(this.setFechaVigencia());
-        await this.page.keyboard.press('Escape');
+        await this.cerrarCalendarioFechaVigencia();
         await this.aplicarDescuento(auto);
         await this.setTipoFacturacion(auto);
         await this.setCantidadCuotas(auto);

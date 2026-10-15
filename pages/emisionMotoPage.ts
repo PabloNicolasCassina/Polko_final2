@@ -142,7 +142,7 @@ export default class EmisionMotoPage {
 
     async emitirCliente() {
         await this.emisionCliente.nosisInput.fill("27381618426");
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
 
         // Locator específico para el searchbox de Localidad (dentro del combobox)
         const localidadSearchbox = this.page.getByRole('searchbox', { name: 'Localidad' });

@@ -15,11 +15,13 @@ import EmisionAsistenciaViajeroPage, {
 } from "../pages/emisionAsistenciaViajeroPage";
 import CotizarMotoIAPage, { PLAN_CODES_MOTO } from "../pages/cotizarMotoIAPage";
 import MiCarteraPage, {
-    ALERTA_MORA,
+    ORIGEN_LABEL,
     ORIGEN_POLKO,
     ORIGEN_REPORTE_COBRANZA,
+    SIN_ARCHIVADAS,
+    TAB_CARTERA_COMPLETA,
     TAB_EMITIDAS_POLKO,
-    TAB_POLIZAS_PAGAS,
+    VER_ARCHIVADAS,
     type MiCarteraTab,
 } from "../pages/miCarteraPage";
 import MisSolicitudesPage from "../pages/misSolicitudesPage";
@@ -33,7 +35,15 @@ import { SSECapture } from "../helpers/sseCapture";
 import { cotizarAuto, emitirAuto } from "../helpers/emisionAutoFlowsRedesign";
 import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { documentarCaso } from "../helpers/documentarCaso";
+import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
 import { registrarSuiteOperacionesPorFuera } from "../helpers/operacionesPorFueraSuite";
+import { parseMontoArs } from "../helpers/pdfPoliza";
+import {
+    descargarPolizaDesdeMiCartera,
+    TIMEOUT_EXTRA_POLIZA_MI_CARTERA,
+    TOLERANCIA_PRECIO_POLIZA,
+    validarPdfPoliza,
+} from "../helpers/polizaMiCartera";
 import asistenciaViajeroData from "../data/asistenciaViajero.json";
 import { CUIT_ASEGURADO, CUIT_ASEGURADO_B, CUIT_TOMADOR_FISICA, CUIT_TOMADOR_JURIDICA } from "../data/apRoles";
 
@@ -104,11 +114,10 @@ const polizaCarteraSartoriRivadavia = {
     nroPoliza: "6602492574000",
     acciones: ["Retención"],
     documentos: [
-        "DOCUMENTACION_POLIZA_COMPLETA",
+        "Póliza completa",
         "CERTIFICADO_COBERTURA",
         "FACTURA",
         "FRENTE_POLIZA_CUPONERA_PAGO_FACIL",
-        "Comprobante de emisión",
     ],
 };
 
@@ -250,7 +259,7 @@ const motoRegresionConfigs: Array<{
         compania: "RUS",
         plan: "RCM c/grúa",
         formaPago: "Débito por CBU",
-        config: { ajusteAutomatico: "No aplicar", usoVehiculo: "Particular" },
+        config: { ajusteAutomatico: "Aplicar 20%" },
     },
     { compania: "ATM", plan: "Robo Premium", formaPago: "Tarjeta de crédito" },
 ];
@@ -384,7 +393,7 @@ async function documentarFlujoWeb(feature: string, descripcion: string, tags: st
 
 // Hook global para adjuntar logs en caso de fallo
 test.afterEach(async ({ page }, testInfo) => {
-    await attachBackendLogsOnFailure(testInfo);
+    await attachBackendLogsOnFailure(testInfo, page);
 });
 
 // ============================================================================
@@ -415,8 +424,10 @@ test.describe('Regresión Auto', () => {
                     `Cotiza un ${autoBase.marca} ${autoBase.modelo} ${autoBase.año} en el cotizador de automotor, ` +
                     `selecciona ${regConfig.compania}${regConfig.tieneGNC ? " con GNC" : ""}, aplica configuración avanzada ` +
                     `(facturación ${regConfig.billingConfig.type}, ${regConfig.installment} cuota/s, ${descuentoAuto}) ` +
+                    `compara la cobertura validando que el PDF de cotización muestre el mismo premio que la tabla ` +
                     `y emite pagando con ${formaPagoAuto}. ` +
-                    "Espera emisión exitosa.",
+                    "Espera emisión exitosa. Luego busca la póliza por patente en Mi cartera, la descarga y verifica " +
+                    `que el PDF corresponda a esa patente y contenga el precio cotizado (±${TOLERANCIA_PRECIO_POLIZA * 100}%).`,
                 precondiciones: PRECONDICIONES_EMISION,
                 parametros: {
                     Compañía: regConfig.compania,
@@ -469,10 +480,24 @@ test.describe('Regresión Auto', () => {
                 });
 
                 prepararDatosAuto(datosAutoParaTest, regConfig.compania);
-                const valorTabla = await cotizarAuto(test, page, datosAutoParaTest, regConfig.compania, emisionAutoPage, companias, cotizacionTabla, false);
+                const valorTabla = await cotizarAuto(test, page, datosAutoParaTest, regConfig.compania, emisionAutoPage, companias, cotizacionTabla, false, { validarPdfComparacion: testInfo });
                 // Extender timeout antes del último paso (emisión puede superar 6 min).
                 test.setTimeout(regConfig.compania === 'mercantil_andina' ? 540000 : 420000);
-                await emitirAuto(test, page, datosAutoParaTest, regConfig.compania, valorTabla, emisionAutoPage, { incluirDescarga: false });
+                const { patente } = await emitirAuto(test, page, datosAutoParaTest, regConfig.compania, valorTabla, emisionAutoPage, { incluirDescarga: false });
+
+                test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
+                const pdfPath = await test.step(`Buscar la póliza en Mi cartera por patente ${patente} y descargarla`, async () =>
+                    descargarPolizaDesdeMiCartera(page, testInfo, patente, regConfig.compania),
+                );
+                if (pdfPath) {
+                    await test.step(`Validar que el PDF sea la póliza de ${patente} y el precio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
+                        await validarPdfPoliza(testInfo, pdfPath, {
+                            patente,
+                            premio: parseMontoArs(valorTabla ?? ""),
+                            cuotas: Number(regConfig.installment),
+                        });
+                    });
+                }
             } finally {
                 // Adjuntar eventos SSE capturados al reporte SIEMPRE, incluso si falla
                 await sseCapture.attachToReport(testInfo, regConfig.compania);
@@ -505,8 +530,11 @@ test.describe("Regresión Moto", () => {
                 descripcion:
                     `Cotiza una ${VEHICULO_MOTO.marca} ${VEHICULO_MOTO.version} ${VEHICULO_MOTO.año} con el cotizador de Moto IA, ` +
                     `selecciona ${regConfig.compania}` +
-                    `${Object.keys(configMoto).length > 0 ? ", aplica configuración avanzada" : ""} ` +
-                    `y emite el plan "${regConfig.plan}" (${codigo}) pagando con ${regConfig.formaPago}. Espera emisión exitosa.`,
+                    `${Object.keys(configMoto).length > 0 ? ", aplica configuración avanzada" : ""}` +
+                    `, compara el plan "${regConfig.plan}" (${codigo}) validando que el PDF de cotización muestre el mismo premio ` +
+                    `y lo emite pagando con ${regConfig.formaPago}. Espera emisión exitosa. ` +
+                    "Luego busca la póliza por patente en Mi cartera, la descarga y verifica que el PDF corresponda a " +
+                    `esa patente y contenga el precio cotizado (±${TOLERANCIA_PRECIO_POLIZA * 100}%).`,
                 precondiciones: PRECONDICIONES_EMISION,
                 parametros: {
                     Compañía: regConfig.compania,
@@ -541,10 +569,36 @@ test.describe("Regresión Moto", () => {
                     await expect(plan.locator(".ctrowAuto__price")).not.toHaveText("$0");
                 });
 
-                await test.step("4- Emitir", async () => {
-                    await cotizarMotoIA.emitirPlan(codigo, { formaPago: regConfig.formaPago });
-                    await cotizarMotoIA.assertEmisionExitosa();
+                const cuotas = await cotizarMotoIA.ctrowTable.cuotasPlan(codigo);
+                const premio = await test.step(`4- Comparar el plan ${codigo} y validar el PDF de cotización`, async () =>
+                    validarComparadorCtrowAuto(
+                        page,
+                        testInfo,
+                        cotizarMotoIA.ctrowTable,
+                        codigo,
+                        `${regConfig.compania}-${codigo}`,
+                    ),
+                );
+
+                const { patente, numero } = await test.step("5- Emitir", async () => {
+                    const { patente } = await cotizarMotoIA.emitirPlan(codigo, { formaPago: regConfig.formaPago });
+                    return { patente, numero: await cotizarMotoIA.assertEmisionExitosa() };
                 });
+
+                test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
+                const pdfPath = await test.step(`6- Buscar la póliza en Mi cartera por patente ${patente} y descargarla`, async () =>
+                    descargarPolizaDesdeMiCartera(page, testInfo, patente, regConfig.compania),
+                );
+                if (pdfPath) {
+                    await test.step(`7- Validar que el PDF sea la póliza de ${patente} y el precio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
+                        await validarPdfPoliza(testInfo, pdfPath, {
+                            patente,
+                            numero: { tipo: "Número de póliza", valor: numero },
+                            premio,
+                            cuotas,
+                        });
+                    });
+                }
             } finally {
                 await sseCapture.attachToReport(testInfo, regConfig.compania);
             }
@@ -657,7 +711,9 @@ test.describe("Regresión AP", () => {
                 descripcion:
                     `Cotiza Accidentes Personales (${regConfig.label}) con el cotizador de AP IA y emite en Sancor ` +
                     `el plan "${regConfig.plan}" del producto ${regConfig.producto} pagando con ${formaPagoAp}. ` +
-                    "Espera que el plan tenga precio y que la emisión sea exitosa.",
+                    "Espera que el plan tenga precio y que la emisión sea exitosa. Luego busca la póliza por número " +
+                    "en Mi cartera, la descarga y verifica que el PDF corresponda a ese número y contenga el premio " +
+                    `total cotizado (±${TOLERANCIA_PRECIO_POLIZA * 100}%).`,
                 precondiciones: PRECONDICIONES_EMISION,
                 parametros: {
                     Compañía: "Sancor",
@@ -687,15 +743,29 @@ test.describe("Regresión AP", () => {
                     await cotizarAP.cotizarAP(regConfig.cotizacion);
                 });
 
-                await test.step(`2- Verificar plan ${regConfig.producto} / ${regConfig.plan}`, async () => {
+                const premioTotal = await test.step(`2- Verificar plan ${regConfig.producto} / ${regConfig.plan}`, async () => {
                     await cotizarAP.esperarPlan(regConfig.producto, regConfig.plan);
                     expect(await cotizarAP.planPrecio(regConfig.producto, regConfig.plan)).toBeGreaterThan(0);
+                    return cotizarAP.planPrecioTotal(regConfig.producto, regConfig.plan);
                 });
 
-                await test.step("3- Emitir", async () => {
+                const numero = await test.step("3- Emitir", async () => {
                     await cotizarAP.emitirPlan(regConfig.producto, regConfig.plan, regConfig.emitOpts);
-                    await cotizarAP.assertEmisionExitosa();
+                    return cotizarAP.assertEmisionExitosa();
                 });
+
+                test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
+                const pdfPath = await test.step(`4- Buscar la póliza ${numero} en Mi cartera y descargarla`, async () =>
+                    descargarPolizaDesdeMiCartera(page, testInfo, numero, `AP-Sancor-${regConfig.producto}`),
+                );
+                if (pdfPath) {
+                    await test.step(`5- Validar que el PDF sea la póliza ${numero} y el premio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
+                        await validarPdfPoliza(testInfo, pdfPath, {
+                            numero: { tipo: "Número de póliza", valor: numero },
+                            premio: premioTotal,
+                        });
+                    });
+                }
             } finally {
                 await sseCapture.attachToReport(testInfo, `ap-sancor-${regConfig.producto}`);
             }
@@ -790,7 +860,7 @@ test.describe("Flujos de la web", () => {
         await documentarFlujoWeb(
             "Mi cartera",
             "Busca por nombre de cliente en Mi cartera (oviedo y luego sartori) y verifica que las cards filtradas " +
-                "coincidan, que la búsqueda se mantenga al cambiar a Pólizas pagas y que al limpiarla vuelva el listado completo.",
+                "coincidan, que la búsqueda se mantenga al cambiar a Cartera completa y que al limpiarla vuelva el listado completo.",
             ["mi-cartera"],
         );
         const miCartera = new MiCarteraPage(page);
@@ -822,8 +892,8 @@ test.describe("Flujos de la web", () => {
             }
         });
 
-        await test.step("La pestaña Pólizas pagas muestra el conteo de la búsqueda", async () => {
-            await expect(miCartera.tabSearchHint(TAB_POLIZAS_PAGAS)).toHaveText(/^\d+$/);
+        await test.step("La pestaña Cartera completa muestra el conteo de la búsqueda", async () => {
+            await expect(miCartera.tabSearchHint(TAB_CARTERA_COMPLETA)).toHaveText(/^\d+ resultados?$/);
             await expect(miCartera.tabSearchHint(TAB_EMITIDAS_POLKO)).toHaveCount(0);
         });
 
@@ -842,8 +912,8 @@ test.describe("Flujos de la web", () => {
             }
         });
 
-        await test.step("La búsqueda se mantiene al cambiar a Pólizas pagas", async () => {
-            await miCartera.irATab(TAB_POLIZAS_PAGAS);
+        await test.step("La búsqueda se mantiene al cambiar a Cartera completa", async () => {
+            await miCartera.irATab(TAB_CARTERA_COMPLETA);
             await expect(miCartera.searchInput).toHaveValue("sartori");
             await expect(miCartera.counter).toBeVisible();
             const titles = await miCartera.getVisibleTitles();
@@ -892,7 +962,7 @@ test.describe("Flujos de la web", () => {
             await test.step(`Buscar ${criterio} ${valor}`, async () => {
                 await miCartera.buscar(valor);
                 await expect(miCartera.cards.first()).toBeVisible({ timeout: 15000 });
-                await expect(miCartera.counter).toHaveText("1 resultados");
+                await expect(miCartera.counter).toHaveText("1");
                 await expect(miCartera.cards).toHaveCount(1);
             });
 
@@ -909,8 +979,10 @@ test.describe("Flujos de la web", () => {
                 await miCartera.abrirCard(card);
                 await expect(miCartera.cards).toHaveCount(0);
 
-                await expect(miCartera.detailBackButton).toHaveText("Volver a pólizas emitidas en Polko");
-                await expect(miCartera.detailRecotizarLink).toHaveText(/Recotizar en Polko/);
+                await expect(miCartera.detailBackLabel).toHaveText(
+                    miCartera.backLabelVisible("Volver a pólizas emitidas en Polko"),
+                );
+                await expect(miCartera.detailRecotizarLink).toHaveText(miCartera.recotizarLabelVisible());
                 await expect(miCartera.detailTitle).toHaveText(poliza.cliente);
                 await expect(miCartera.detailClientDocument).toHaveText(poliza.documento);
                 await expect(miCartera.detailCompanyName).toHaveText(poliza.compania);
@@ -1062,13 +1134,13 @@ test.describe("Flujos de la web", () => {
         }
     });
 
-    test("Mi cartera - Pólizas pagas: aviso de datos de pago y fuente del dato", async ({ page }) => {
+    test("Mi cartera - Cartera completa: aviso de actualización y fuente del dato", async ({ page }) => {
         test.setTimeout(240000);
         await documentarFlujoWeb(
-            "Mi cartera - Pólizas pagas",
-            "En Pólizas pagas verifica el aviso de actualización mensual de datos de pago (cerrar y reabrir), los filtros " +
-                "propios de la pestaña y el filtro Fuente del dato (Polko / Reporte de cobranza) con su contador.",
-            ["mi-cartera", "polizas-pagas"],
+            "Mi cartera - Cartera completa",
+            "En Cartera completa verifica el aviso de actualización mensual de datos (cerrar y reabrir), los filtros " +
+                "propios de la pestaña y el filtro Fuente del dato (Emitidas en Polko / Reporte de cobranza) con su contador.",
+            ["mi-cartera", "cartera-completa"],
         );
         const miCartera = new MiCarteraPage(page);
 
@@ -1079,21 +1151,20 @@ test.describe("Flujos de la web", () => {
             miCartera.counter,
         );
         await miCartera.waitForListaCargada();
-        await miCartera.irATab(TAB_POLIZAS_PAGAS);
+        await miCartera.irATab(TAB_CARTERA_COMPLETA);
 
         await test.step("Sin filtros: aviso abierto, sin contador y con filtros propios de la pestaña", async () => {
             await expect(miCartera.listSubtitle).toContainText("registraron pagos");
             await expect(miCartera.paymentNotice).toBeVisible();
-            await expect(miCartera.paymentNotice).toContainText(
-                "Los datos de pago se actualizan una vez al mes",
-            );
+            await expect(miCartera.paymentNotice).toContainText("Los datos se actualizan una vez al mes");
             await expect(miCartera.paymentNoticeUpdatedDate).toHaveText(/^\d{2} \S{3} \d{4}$/);
             await expect(miCartera.counter).toBeHidden();
             await expect(miCartera.statusSelect).toBeHidden();
             await expect(miCartera.originSelect).toBeVisible();
-            await expect(miCartera.moraButton).toHaveAttribute("aria-label", ALERTA_MORA);
-            await expect(miCartera.moraButton).toHaveAttribute("aria-pressed", "false");
+            await expect(miCartera.viewArchivedButton).toHaveText(VER_ARCHIVADAS);
+            await expect(miCartera.viewArchivedButton).toHaveAttribute("aria-pressed", "false");
             await expect(miCartera.exportButton).toBeVisible();
+            await miCartera.verificarLayoutMobile();
         });
 
         await test.step("Cerrar y reabrir el aviso", async () => {
@@ -1141,13 +1212,13 @@ test.describe("Flujos de la web", () => {
         });
     });
 
-    test("Mi cartera - Pólizas pagas: selector de compañías", async ({ page }) => {
+    test("Mi cartera - Cartera completa: selector de compañías", async ({ page }) => {
         test.setTimeout(300000);
         await documentarFlujoWeb(
-            "Mi cartera - Pólizas pagas",
-            "En Pólizas pagas filtra por cada compañía del selector (filtro server-side) y verifica que las cards sean " +
+            "Mi cartera - Cartera completa",
+            "En Cartera completa filtra por cada compañía del selector (filtro server-side) y verifica que las cards sean " +
                 "de esa compañía o que se muestre el estado vacío.",
-            ["mi-cartera", "polizas-pagas"],
+            ["mi-cartera", "cartera-completa"],
         );
         const miCartera = new MiCarteraPage(page);
 
@@ -1158,7 +1229,7 @@ test.describe("Flujos de la web", () => {
             miCartera.counter,
         );
         await miCartera.waitForListaCargada();
-        await miCartera.irATab(TAB_POLIZAS_PAGAS);
+        await miCartera.irATab(TAB_CARTERA_COMPLETA);
 
         const companias = await miCartera.obtenerOpciones(miCartera.companySelect);
         expect(companias.length, "Debería haber al menos una compañía en el selector").toBeGreaterThan(0);
@@ -1186,13 +1257,13 @@ test.describe("Flujos de la web", () => {
         }
     });
 
-    test("Mi cartera - Pólizas pagas: selector de producto", async ({ page }) => {
+    test("Mi cartera - Cartera completa: selector de producto", async ({ page }) => {
         test.setTimeout(300000);
         await documentarFlujoWeb(
-            "Mi cartera - Pólizas pagas",
-            "En Pólizas pagas filtra por cada producto del selector (filtro server-side) y verifica que las cards sean " +
+            "Mi cartera - Cartera completa",
+            "En Cartera completa filtra por cada producto del selector (filtro server-side) y verifica que las cards sean " +
                 "de ese producto o que se muestre el estado vacío.",
-            ["mi-cartera", "polizas-pagas"],
+            ["mi-cartera", "cartera-completa"],
         );
         const miCartera = new MiCarteraPage(page);
 
@@ -1203,7 +1274,7 @@ test.describe("Flujos de la web", () => {
             miCartera.counter,
         );
         await miCartera.waitForListaCargada();
-        await miCartera.irATab(TAB_POLIZAS_PAGAS);
+        await miCartera.irATab(TAB_CARTERA_COMPLETA);
 
         const productos = await miCartera.obtenerOpciones(miCartera.productSelect);
         expect(productos.length, "Debería haber al menos un producto en el selector").toBeGreaterThan(0);
@@ -1231,13 +1302,13 @@ test.describe("Flujos de la web", () => {
         }
     });
 
-    test("Mi cartera - Pólizas pagas: filtro de alerta de mora", async ({ page }) => {
+    test("Mi cartera - Cartera completa: ver archivadas y volver a activas", async ({ page }) => {
         test.setTimeout(240000);
         await documentarFlujoWeb(
-            "Mi cartera - Pólizas pagas",
-            "En Pólizas pagas activa el filtro de alerta de mora y verifica que todas las cards muestren la alerta; " +
-                "al desactivarlo vuelve el listado completo.",
-            ["mi-cartera", "polizas-pagas"],
+            "Mi cartera - Cartera completa",
+            "En Cartera completa alterna a la vista de pólizas archivadas (cada card ofrece Desarchivar o se muestra el " +
+                "estado vacío) y vuelve a las activas, sin archivar ni desarchivar nada.",
+            ["mi-cartera", "cartera-completa"],
         );
         const miCartera = new MiCarteraPage(page);
 
@@ -1248,29 +1319,25 @@ test.describe("Flujos de la web", () => {
             miCartera.counter,
         );
         await miCartera.waitForListaCargada();
-        await miCartera.irATab(TAB_POLIZAS_PAGAS);
+        await miCartera.irATab(TAB_CARTERA_COMPLETA);
+        await expect(miCartera.archivePills).toHaveCount(0);
 
-        await test.step("Activar alerta de mora", async () => {
-            await miCartera.toggleAlertaMora();
-            await expect(miCartera.counter).toBeVisible();
-
-            if ((await miCartera.getResultadosCount()) === 0) {
-                await expect(miCartera.emptyState).toBeVisible();
+        await test.step("Ver archivadas", async () => {
+            await miCartera.toggleVerArchivadas();
+            const cards = await miCartera.cards.count();
+            if (cards === 0) {
+                await expect(miCartera.emptyState).toHaveText(SIN_ARCHIVADAS);
                 return;
             }
-            const cards = await miCartera.cards.count();
-            await expect(miCartera.cardsConAlertaMora()).toHaveCount(cards);
-            await expect(miCartera.cardStatuses()).toHaveCount(0);
-            const labels = (await miCartera.alertaMoraLabels().allTextContents()).map((l) => l.trim());
-            expect(labels.length).toBe(cards);
-            for (const label of labels) {
-                expect(label).toBe(ALERTA_MORA);
+            await expect(miCartera.archivePills).toHaveCount(cards);
+            for (const pill of await miCartera.archivePills.all()) {
+                await expect(pill).toHaveText("Desarchivar");
             }
         });
 
-        await test.step("Desactivar alerta de mora", async () => {
-            await miCartera.toggleAlertaMora();
-            await expect(miCartera.counter).toBeHidden();
+        await test.step("Volver a activas", async () => {
+            await miCartera.toggleVerArchivadas();
+            await expect(miCartera.archivePills).toHaveCount(0);
             await expect(miCartera.cards.first()).toBeVisible();
         });
     });
@@ -1279,8 +1346,8 @@ test.describe("Flujos de la web", () => {
         test.setTimeout(240000);
         await documentarFlujoWeb(
             "Mi cartera",
-            "En Pólizas emitidas en Polko y en Pólizas pagas abre el detalle de la primera póliza, verifica título, " +
-                "botón de volver, Recotizar y Fuente del dato, y vuelve al listado.",
+            "En Pólizas emitidas en Polko y en Cartera completa abre el detalle de la primera póliza, verifica título, " +
+                "botón de volver, Recotizar y Origen, y vuelve al listado.",
             ["mi-cartera"],
         );
         const miCartera = new MiCarteraPage(page);
@@ -1295,20 +1362,22 @@ test.describe("Flujos de la web", () => {
 
         const casos: { tab: MiCarteraTab; backLabel: string }[] = [
             { tab: TAB_EMITIDAS_POLKO, backLabel: "Volver a pólizas emitidas en Polko" },
-            { tab: TAB_POLIZAS_PAGAS, backLabel: "Volver a pólizas pagas" },
+            { tab: TAB_CARTERA_COMPLETA, backLabel: "Volver a cartera completa" },
         ];
 
         for (const { tab, backLabel } of casos) {
             await test.step(`${tab}: abrir detalle de la primera póliza y volver`, async () => {
                 await miCartera.irATab(tab);
                 await expect(miCartera.cards.first()).toBeVisible();
+                await miCartera.verificarLayoutMobile();
 
                 const clientName = await miCartera.abrirDetalle(0);
                 await expect(miCartera.detailTitle).toHaveText(clientName);
-                await expect(miCartera.detailBackButton).toHaveText(backLabel);
+                await expect(miCartera.detailBackLabel).toHaveText(miCartera.backLabelVisible(backLabel));
                 await expect(miCartera.detailRecotizarLink).toBeVisible();
-                await expect(miCartera.detailOrigin).toContainText("Fuente del dato");
+                await expect(miCartera.detailOrigin).toContainText(ORIGEN_LABEL);
                 await expect(miCartera.filters).toBeHidden();
+                await miCartera.verificarLayoutMobileDetalle();
 
                 await miCartera.volverDelDetalle();
                 await expect(miCartera.listTitle).toHaveText(tab);
@@ -1362,6 +1431,7 @@ test.describe("Flujos de la web", () => {
             await expect(card.amount).toHaveText(/\$|Pendiente/);
             await expect(card.status).not.toBeEmpty();
             await expect(misSolicitudes.pagination).toBeVisible();
+            await misSolicitudes.verificarLayoutMobileAutomotor();
         });
 
         await test.step("ART: la pestaña carga con filtros y contador", async () => {
@@ -1381,6 +1451,7 @@ test.describe("Flujos de la web", () => {
             } else {
                 await expect(misSolicitudes.emptyState).toBeHidden();
             }
+            await misSolicitudes.verificarLayoutMobileArt();
         });
     });
 
@@ -1471,7 +1542,7 @@ test.describe("Flujos de la web", () => {
         await misSolicitudes.abrirSolicitudAutomotor("Aprobada");
 
         await test.step("Verificar datos de vigencia y suma asegurada", async () => {
-            await expect(detail.backButton).toHaveText("Volver a Automotor");
+            await expect(detail.backLabel).toHaveText(misSolicitudes.backLabelVisible("Volver a Automotor"));
             await expect(detail.inicioVigencia).toHaveText(/^Inicio vigencia:\s*\d{2}\/\d{2}\/\d{4}$/);
             await expect(detail.finVigencia).toHaveText(/^Fin vigencia:\s*\d{2}\/\d{2}\/\d{4}$/);
             await expect(detail.sumaAsegurada).toHaveText(/^Suma asegurada:\s*\$[\d.]+(,\d+)?$/);
@@ -1507,7 +1578,7 @@ test.describe("Flujos de la web", () => {
         await misSolicitudes.abrirSolicitudAutomotor("Cancelada");
 
         await test.step("Verificar datos de vigencia y suma asegurada", async () => {
-            await expect(detail.backButton).toHaveText("Volver a Automotor");
+            await expect(detail.backLabel).toHaveText(misSolicitudes.backLabelVisible("Volver a Automotor"));
             await expect(detail.inicioVigencia).toHaveText(/^Inicio vigencia:\s*\d{2}\/\d{2}\/\d{4}$/);
             await expect(detail.finVigencia).toHaveText(/^Fin vigencia:\s*\d{2}\/\d{2}\/\d{4}$/);
             await expect(detail.sumaAsegurada).toHaveText(/^Suma asegurada:\s*\$[\d.]+(,\d+)?$/);
@@ -1563,7 +1634,7 @@ test.describe("Flujos de la web", () => {
         await test.step("Cancelar abre la confirmación (sin confirmar)", async () => {
             await expect(detail.cancelarBtn).toBeEnabled();
             await detail.cancelarBtn.click();
-            const volverBtn = page.getByRole("button", { name: "Volver", exact: true });
+            const volverBtn = page.locator("#portal-root").getByRole("button", { name: "Volver", exact: true });
             await expect(page.getByText("Cancelar solicitud").first()).toBeVisible();
             await volverBtn.click();
             await expect(volverBtn).toBeHidden();

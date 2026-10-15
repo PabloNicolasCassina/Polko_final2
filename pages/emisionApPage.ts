@@ -191,7 +191,7 @@ export default class EmisionApPage {
         await this.emisionCliente.buscarClienteBtn.click();
         await this.emisionCliente.getEditarClienteBtn(1).click();
         await this.emisionCliente.nosisInput.fill(cuitDniTomador);
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
         await expect(this.emisionCliente.localidadInput).toBeVisible({ timeout: 180000 });
         await expect(this.emisionCliente.localidadInput).not.toBeEmpty();
         await this.emisionCliente.getEditarClienteBtn(1).click();
@@ -202,7 +202,7 @@ export default class EmisionApPage {
             await this.emisionCliente.buscarClienteBtn.click();
             await this.emisionCliente.buscarClienteBtn.click();
             await this.emisionCliente.nosisInput.fill(cuitDniBeneficiario);
-            await this.emisionCliente.buscarBtn.click();
+            await this.emisionCliente.buscarEnNosis();
             await expect(this.emisionCliente.getCheckLlenadoCliente(2)).toBeVisible({ timeout: 180000 });
             await expect(this.emisionCliente.getWarningLlenadoCliente(2)).not.toBeVisible({ timeout: 180000 });
             await this.emisionCliente.getEditarClienteBtn(2).click();
@@ -221,7 +221,7 @@ export default class EmisionApPage {
                 : (cuitDniAsegurados ?? cuitDniTomador);
             await this.emisionCliente.getEditarClienteBtn(fila).click();
             await this.emisionCliente.nosisInput.fill(cuit);
-            await this.emisionCliente.buscarBtn.click();
+            await this.emisionCliente.buscarEnNosis();
             await expect(this.emisionCliente.getCheckLlenadoCliente(fila)).toBeVisible({ timeout: 180000 });
             await expect(this.emisionCliente.getWarningLlenadoCliente(fila)).not.toBeVisible({ timeout: 180000 });
             await this.emisionCliente.getEditarClienteBtn(fila).click();
@@ -235,7 +235,7 @@ export default class EmisionApPage {
             await this.page.getByRole('option', { name: 'Tercero c/claus. no repetición', exact: true }).click();
             await this.emisionCliente.getEditarClienteBtn(filaClausula).click();
             await this.emisionCliente.nosisInput.fill(clausulaNoRepeticion);
-            await this.emisionCliente.buscarBtn.click();
+            await this.emisionCliente.buscarEnNosis();
             await expect(this.emisionCliente.getCheckLlenadoCliente(filaClausula)).toBeVisible({ timeout: 180000 });
             await expect(this.emisionCliente.getWarningLlenadoCliente(filaClausula)).not.toBeVisible({ timeout: 180000 });
             await this.emisionCliente.getEditarClienteBtn(filaClausula).click();

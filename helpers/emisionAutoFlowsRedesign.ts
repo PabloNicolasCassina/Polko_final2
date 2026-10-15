@@ -1,7 +1,7 @@
 import { type Page, type TestInfo, type Download, expect } from "@playwright/test";
 import path from 'path';
 import fs from 'fs';
-import EmisionAutoPage from "../pages/emisionAutoPage";
+import EmisionAutoPage, { type TablaCotizacionOptions } from "../pages/emisionAutoPage";
 import CommonButtons from "../components/commonButtons";
 import Companias from "../components/companias";
 import CotizacionTabla from "../components/auto/cotizacionTabla";
@@ -24,7 +24,8 @@ export async function cotizarAuto(
     emisionAutoPage: EmisionAutoPage,
     companias: Companias,
     cotizacionTabla: CotizacionTabla,
-    blacklisted: boolean = false
+    blacklisted: boolean = false,
+    opcionesTabla: TablaCotizacionOptions = {}
 ): Promise<string | null> {
     const commonButtons = new CommonButtons(page);
     let valorTabla: string | null = null;
@@ -57,7 +58,7 @@ export async function cotizarAuto(
             });
         } else {
             await test.step("4- Flujo tabla de cotización", async () => {
-                await emisionAutoPage.tablaCotizacion(datosDelTest, compania);
+                await emisionAutoPage.tablaCotizacion(datosDelTest, compania, opcionesTabla);
                 valorTabla = await cotizacionTabla.getValorCoberturaTabla(compania);
                 await cotizacionTabla.clickEmitirHandlingDirtyModal(compania);
             });
@@ -75,7 +76,8 @@ export async function emitirAuto(
     valorTabla: string | null,
     emisionAutoPage: EmisionAutoPage,
     options: EmitirAutoOptions = {}
-): Promise<void> {
+): Promise<{ patente: string }> {
+    let patente = "";
     await test.step(`📝Flujo emisión póliza para: ${compania}`, async () => {
         await test.step("1- Seleccionar forma de pago", async () => {
             await emisionAutoPage.emitirFormaPago(datosDelTest);
@@ -84,7 +86,7 @@ export async function emitirAuto(
             await emisionAutoPage.emitirCliente(datosDelTest);
         });
         await test.step("3- Completar detalle del auto", async () => {
-            await emisionAutoPage.emitirDetalleAuto(datosDelTest);
+            patente = await emisionAutoPage.emitirDetalleAuto(datosDelTest);
         });
         if (!datosDelTest.zurich) {
             // Mercantil Andina completa la inspección en una pestaña externa
@@ -105,6 +107,7 @@ export async function emitirAuto(
             });
         }
     });
+    return { patente };
 }
 
 export async function descargarYAdjuntarPoliza(

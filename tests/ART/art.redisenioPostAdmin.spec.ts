@@ -22,8 +22,8 @@ async function setupPageWithMock(page: Page, targetUrl: string): Promise<void> {
     await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
 }
 
-test.afterEach(async ({}, testInfo) => {
-    await attachBackendLogsOnFailure(testInfo);
+test.afterEach(async ({ page }, testInfo) => {
+    await attachBackendLogsOnFailure(testInfo, page);
 });
 
 test.describe("POL-2882 Rediseño ART — post-admin", () => {

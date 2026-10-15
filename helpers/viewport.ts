@@ -6,12 +6,19 @@ export const COMPACT_VIEWPORT_MAX_WIDTH = 1024;
 /** Breakpoint legacy de `UserContext.isMobile` (p. ej. tarjetas de coberturas AP). */
 export const MOBILE_VIEWPORT_MAX_WIDTH = 480;
 
+/** Breakpoint de labels cortos en el detalle de Mi cartera ("Volver", "Recotizar"). */
+export const NARROW_VIEWPORT_MAX_WIDTH = 768;
+
 function viewportWidth(page: Page): number {
     return page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER;
 }
 
 export function isCompactViewport(page: Page): boolean {
     return viewportWidth(page) <= COMPACT_VIEWPORT_MAX_WIDTH;
+}
+
+export function isNarrowViewport(page: Page): boolean {
+    return viewportWidth(page) <= NARROW_VIEWPORT_MAX_WIDTH;
 }
 
 export function isMobileViewport(page: Page): boolean {

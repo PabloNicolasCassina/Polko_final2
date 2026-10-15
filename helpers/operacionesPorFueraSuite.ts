@@ -3,6 +3,9 @@ import CotizarAutoIAPage, { PLAN_CODES_AUTO } from "../pages/cotizarAutoIAPage";
 import MisSolicitudesPage from "../pages/misSolicitudesPage";
 import MiCarteraPage, { TAB_EMITIDAS_POLKO } from "../pages/miCarteraPage";
 import OperacionPorFuera from "../components/auto/operacionPorFuera";
+import AdminEmisionesPorFueraPage from "../pages/adminEmisionesPorFueraPage";
+import { adminDisponible, conAdmin } from "../helpers/adminApp";
+import { datosEmisionAdmin, OPF_ADMIN_PREMIO_COTIZADA } from "../data/opfAdminEmision";
 import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { mockUserDataString } from "../helpers/mockUser";
 import { documentarCaso } from "../helpers/documentarCaso";
@@ -69,6 +72,11 @@ import {
  * Mis Solicitudes hasta "Aprobada"), valida el ID y "Ver póliza en Mi Cartera" → la póliza está
  * en Mi Cartera (por id de emisión y buscando la patente). Con `-g "completar solicitud"` retoma
  * las que hayan quedado de una corrida anterior (si ya se completó, salta directo a la emisión).
+ *
+ * Admin automatizado (helpers/adminApp.ts): si existen `admin/build` y `.auth/userAdmin.json` con token
+ * vigente, el propio test cotiza (premio fijo) y emite (datos de emisión de data/opfAdminEmision.ts) en
+ * admin en vez de esperar a que alguien lo haga, y el flujo post-error también llega a la póliza en
+ * Mi Cartera. `OPF_ADMIN=0` vuelve al modo manual.
  */
 
 const VEHICULO = {
@@ -144,11 +152,15 @@ export interface OpcionesSuiteOperacionesPorFuera {
  */
 export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperacionesPorFuera = {}): void {
     const { prefijoPendientes, adjuntarLogsBackend = true } = opciones;
-    const clave = (key: string) => (prefijoPendientes ? `${prefijoPendientes}_${key}` : key);
+    // Por proyecto: chromium y mobile corren en paralelo y cada uno completa sus propias solicitudes.
+    const clave = (key: string) =>
+        [prefijoPendientes, test.info().project.name.replace(/\W+/g, "-"), key].filter(Boolean).join("_");
 
     test.describe("Auto - Operaciones por fuera post-error de emisión @regression", () => {
-        test.afterEach(async ({}, testInfo) => {
-            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo);
+        test.describe.configure({ retries: OPF_REINTENTOS_FASE1 });
+
+        test.afterEach(async ({ page }, testInfo) => {
+            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo, page);
         });
 
         for (const [compania, nombrePlan] of Object.entries(PLAN_POR_COMPANIA)) {
@@ -158,7 +170,7 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
             test(`${compania}: error al emitir "${nombrePlan}" (${codigo}) → solicitar emisión a Operaciones`, async ({
                 page,
             }, testInfo) => {
-                test.setTimeout(180000);
+                test.setTimeout(OPF_COMPLETAR ? 600000 : 180000);
                 const formaPago = FORMA_PAGO_POR_COMPANIA[compania] ?? "Efectivo";
 
                 await documentarCaso({
@@ -294,14 +306,26 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
 
                 if (OPF_BACKEND_MOCK) return;
                 await validarEnMisSolicitudes(page, opfResult.id);
+
+                // Sin admin automatizado no se espera la emisión manual: bloquearía la corrida.
+                if (!OPF_COMPLETAR || !adminDisponible().ok) return;
+                const patente = buscarValor(opfPayload, "patente");
+                await verPolizaEmitidaEnMiCartera(page, {
+                    compania,
+                    companyEnum,
+                    opfId: String(opfResult.id),
+                    patente: patente ? String(patente) : undefined,
+                });
             });
         }
     });
 
     test.describe("Auto - Operaciones por fuera con cobertura fuera de pauta @regression", () => {
-        test.afterEach(async ({}, testInfo) => {
-            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo);
-            if (OPF_BACKEND_MOCK) return;
+        test.describe.configure({ retries: OPF_REINTENTOS_FASE1 });
+
+        test.afterEach(async ({ page }, testInfo) => {
+            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo, page);
+            if (OPF_BACKEND_MOCK || !sinReintentosFase1(testInfo)) return;
             const compania = testInfo.title.split(":")[0];
             const companyEnum = COMPANY_ENUM_POR_LABEL[compania];
             if (companyEnum && leerOpfPendiente(clave(companyEnum))?.estado === "en_curso") {
@@ -315,7 +339,7 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
             test(`${compania}: solicitar una cobertura fuera de pauta ("Ver más") a Operaciones`, async ({
                 page,
             }, testInfo) => {
-                test.setTimeout(180000);
+                test.setTimeout(300000);
 
                 await documentarCaso({
                     epic: "Auto",
@@ -460,15 +484,18 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
         const { compania, pendienteKey, codigo, nombre } = ZURICH_OUT_STANDARD;
         const companyEnum = COMPANY_ENUM_POR_LABEL[compania];
 
-        test.afterEach(async ({}, testInfo) => {
-            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo);
-            if (!OPF_BACKEND_MOCK && leerOpfPendiente(clave(pendienteKey))?.estado === "en_curso") {
+        test.describe.configure({ retries: OPF_REINTENTOS_FASE1 });
+
+        test.afterEach(async ({ page }, testInfo) => {
+            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo, page);
+            if (OPF_BACKEND_MOCK || !sinReintentosFase1(testInfo)) return;
+            if (leerOpfPendiente(clave(pendienteKey))?.estado === "en_curso") {
                 guardarOpfPendiente(clave(pendienteKey), { estado: "fallida", compania });
             }
         });
 
         test(`${compania}: solicitar "${nombre}" (etiqueta "Fuera de pauta") a Operaciones`, async ({ page }, testInfo) => {
-            test.setTimeout(180000);
+            test.setTimeout(300000);
 
             await documentarCaso({
                 epic: "Auto",
@@ -607,8 +634,8 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
     test.describe("Auto - Operaciones por fuera: completar solicitud Cotizada @regression", () => {
         test.skip(!OPF_COMPLETAR || OPF_BACKEND_MOCK, "Requiere OPF_COMPLETAR=1 y backend real (sin OPF_MOCK)");
 
-        test.afterEach(async ({}, testInfo) => {
-            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo);
+        test.afterEach(async ({ page }, testInfo) => {
+            if (adjuntarLogsBackend) await attachBackendLogsOnFailure(testInfo, page);
         });
 
         for (const compania of Object.keys(PLAN_POR_COMPANIA)) {
@@ -702,6 +729,113 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
     });
 }
 
+const OPF_INTENTOS_RECARGA = 3;
+
+/**
+ * Reintentos de los tests de fase 1 (crean la solicitud desde cero, así que son seguros de repetir).
+ * Con 4 workers el backend local se satura y algunas cotizaciones/búsquedas no responden.
+ * La fase 2 no se reintenta: retomaría una solicitud a medio completar. `OPF_RETRIES=0` lo desactiva.
+ */
+const OPF_REINTENTOS_FASE1 = Number(process.env.OPF_RETRIES ?? (process.env.CI ? 2 : 1));
+
+/** La fase 2 espera a la fase 1: solo se marca "fallida" cuando ya no quedan reintentos. */
+function sinReintentosFase1(testInfo: TestInfo): boolean {
+    return testInfo.retry >= OPF_REINTENTOS_FASE1;
+}
+
+/**
+ * Corre `accion` y, si falla, recarga la página y la reintenta (hasta `OPF_INTENTOS_RECARGA` veces).
+ * El backend local corta conexiones bajo carga (`newgetDatosDashboard` / `getDocumentacion` en 500,
+ * modal "Tuvimos un inconveniente al cargar la información inicial"), y un F5 lo resuelve.
+ * Cada reintento queda anotado en el reporte con screenshot. Con `recargar: false` la acción
+ * se encarga de recargar ella misma (cuando necesita escuchar responses de la carga).
+ */
+async function reintentarRecargando<T>(
+    page: Page,
+    descripcion: string,
+    accion: (intento: number) => Promise<T>,
+    { recargar = true }: { recargar?: boolean } = {},
+): Promise<T> {
+    for (let intento = 1; ; intento++) {
+        try {
+            return await accion(intento);
+        } catch (error) {
+            if (intento >= OPF_INTENTOS_RECARGA) throw error;
+            const motivo = String((error as Error)?.message ?? error).split("\n")[0];
+            test.info().annotations.push({
+                type: "warning",
+                description: `${descripcion}: falló el intento ${intento} (${motivo}); se recarga la página y se reintenta`,
+            });
+            await test.info().attach(`reintento-${intento}.png`, {
+                body: await page.screenshot().catch(() => Buffer.alloc(0)),
+                contentType: "image/png",
+            });
+            if (recargar) await page.reload({ waitUntil: "domcontentloaded" }).catch(() => undefined);
+        }
+    }
+}
+
+/**
+ * Hace en admin lo que antes se esperaba a mano: `cotizar` (Pendiente → Cotizada con premio) o
+ * `emitir` (Pendiente de emisión → Emitida con los datos de emisión de la compañía). Si la solicitud
+ * ya pasó por ese paso (p. ej. al retomar una corrida) no la toca. Devuelve false si admin no está
+ * disponible (sin build / sin userAdmin.json / OPF_ADMIN=0): el llamador sigue en modo manual.
+ */
+async function operarEnAdmin(
+    accion: "cotizar" | "emitir",
+    ctx: { compania: string; companyEnum: string; opfId: string },
+): Promise<boolean> {
+    const { compania, companyEnum, opfId } = ctx;
+    const disponible = adminDisponible();
+    if (!disponible.ok) {
+        test.info().annotations.push({
+            type: "info",
+            description: `Admin no automatizado (${disponible.motivo}): ${accion} ${opfId} a mano en admin`,
+        });
+        return false;
+    }
+
+    const titulo = accion === "cotizar"
+        ? `Admin: cotizar ${opfId} (${compania}) con premio ${OPF_ADMIN_PREMIO_COTIZADA}`
+        : `Admin: emitir ${opfId} (${compania})`;
+    await test.step(titulo, () =>
+        conAdmin(async (adminPage) => {
+            const admin = new AdminEmisionesPorFueraPage(adminPage);
+            await admin.goto();
+            const item = await admin.abrirTicket(opfId, companyEnum);
+            const status = String(item?.status ?? "");
+
+            if (accion === "cotizar") {
+                if (status !== OPF_STATUS_PENDIENTE) {
+                    test.info().annotations.push({ type: "info", description: `${opfId} ya estaba "${status}" en admin: no se cotiza` });
+                    return;
+                }
+                const body = await admin.cambiarEstado(opfId, "Cotizada", { premio: OPF_ADMIN_PREMIO_COTIZADA });
+                expect(body?.status).toBe(OPF_STATUS_COTIZADA);
+                expect(Number(body?.request?.premio)).toBe(OPF_ADMIN_PREMIO_COTIZADA);
+                return;
+            }
+
+            if (OPF_STATUS_APROBADA.includes(status)) {
+                test.info().annotations.push({ type: "info", description: `${opfId} ya estaba "${status}" en admin: no se emite` });
+                return;
+            }
+            expect(status, `${opfId} tiene que estar en "${OPF_STATUS_PENDIENTE_EMISION}" para emitirla`).toBe(OPF_STATUS_PENDIENTE_EMISION);
+            const datosEmision = datosEmisionAdmin(companyEnum);
+            const body = await admin.cambiarEstado(opfId, "Emitida", {
+                datosEmision,
+                premio: Number(item?.request?.premio) || OPF_ADMIN_PREMIO_COTIZADA,
+            });
+            await test.info().attach("admin-emitida-request.json", {
+                body: JSON.stringify(body, null, 2),
+                contentType: "application/json",
+            });
+            expect(OPF_STATUS_APROBADA).toContain(body?.status);
+        }),
+    );
+    return true;
+}
+
 /**
  * Recarga Mis Solicitudes → Automotor cada `OPF_POLL_INTERVAL_MS` y mira el estado de la solicitud
  * en el listado que trae la pantalla, hasta que esté en alguno de `objetivo`. Devuelve el ítem.
@@ -781,10 +915,20 @@ async function descargarPdfCotizacionSolicitud(
     );
     const estado = OPF_STATUS_APROBADA.includes(String(operacion?.status)) ? OPF_LABEL_APROBADA : OPF_STATUS_PENDIENTE_EMISION;
 
-    await test.step(`Abrir la solicitud en "${estado}" y validar el ID`, async () => {
-        await misSolicitudes.abrirSolicitudAutomotorPorId(opfId, estado, OPF_COMPANY_OPTION[companyEnum]);
-        await expect(misSolicitudes.detail.root.getByText(/ID Solicitud:/)).toContainText(opfId);
-    });
+    await test.step(`Abrir la solicitud en "${estado}" y validar el ID`, () =>
+        reintentarRecargando(page, `Abrir ${opfId} en Mis Solicitudes`, async () => {
+            await misSolicitudes.abrirSolicitudAutomotorPorId(opfId, estado, OPF_COMPANY_OPTION[companyEnum]);
+            await expect(misSolicitudes.detail.root.getByText(/ID Solicitud:/)).toContainText(opfId);
+        }),
+    );
+
+    if (estado === OPF_LABEL_APROBADA) {
+        testInfo.annotations.push({
+            type: "info",
+            description: `${opfId} ya estaba Aprobada: Mis Solicitudes no muestra Documentación (queda en Mi Cartera), no se descarga el PDF de cotización.`,
+        });
+        return;
+    }
 
     await test.step('"PDF de cotización" descarga la cotización', async () => {
         await validarDescargaPdfCotizacion(page, testInfo, misSolicitudes.documentoBtn("PDF de cotización"));
@@ -812,6 +956,8 @@ async function completarSolicitudCotizada(
     const cotizarAutoIA = new CotizarAutoIAPage(page);
     const opf = new OperacionPorFuera(page);
 
+    await operarEnAdmin("cotizar", { compania, companyEnum, opfId });
+
     await test.step(`Esperar en Mis Solicitudes que ${opfId} pase a "${OPF_LABEL_A_COMPLETAR}"`, async () => {
         await esperarEstadoEnMisSolicitudes(misSolicitudes, {
             opfId,
@@ -822,11 +968,13 @@ async function completarSolicitudCotizada(
         });
     });
 
-    await test.step(`Abrir la solicitud en Mis Solicitudes → Automotor → "${OPF_LABEL_A_COMPLETAR}"`, async () => {
-        await misSolicitudes.abrirSolicitudAutomotorPorId(opfId, OPF_LABEL_A_COMPLETAR, OPF_COMPANY_OPTION[companyEnum]);
-        await expect(misSolicitudes.detail.descargarPdfBtn).toBeVisible({ timeout: 30000 });
-        await expect(misSolicitudes.detail.solicitarEmisionBtn).toBeVisible();
-    });
+    await test.step(`Abrir la solicitud en Mis Solicitudes → Automotor → "${OPF_LABEL_A_COMPLETAR}"`, () =>
+        reintentarRecargando(page, `Abrir ${opfId} en Mis Solicitudes`, async () => {
+            await misSolicitudes.abrirSolicitudAutomotorPorId(opfId, OPF_LABEL_A_COMPLETAR, OPF_COMPANY_OPTION[companyEnum]);
+            await expect(misSolicitudes.detail.descargarPdfBtn).toBeVisible({ timeout: 30000 });
+            await expect(misSolicitudes.detail.solicitarEmisionBtn).toBeVisible();
+        }),
+    );
 
     await test.step('"Descargar pdf" descarga la cotización', async () => {
         await validarDescargaPdfCotizacion(page, testInfo, misSolicitudes.detail.descargarPdfBtn);
@@ -891,6 +1039,8 @@ async function verPolizaEmitidaEnMiCartera(
     const misSolicitudes = new MisSolicitudesPage(page);
     const miCartera = new MiCarteraPage(page);
 
+    await operarEnAdmin("emitir", { compania, companyEnum, opfId });
+
     const operacion = await test.step(`Esperar en Mis Solicitudes que ${opfId} pase a "${OPF_LABEL_APROBADA}"`, () =>
         esperarEstadoEnMisSolicitudes(misSolicitudes, {
             opfId,
@@ -902,29 +1052,46 @@ async function verPolizaEmitidaEnMiCartera(
     );
     const idEmision = operacion?.id_issuance ? String(operacion.id_issuance) : undefined;
 
-    await test.step(`Abrir la solicitud en "${OPF_LABEL_APROBADA}" y validar el ID`, async () => {
-        await misSolicitudes.abrirSolicitudAutomotorPorId(opfId, OPF_LABEL_APROBADA, OPF_COMPANY_OPTION[companyEnum]);
-        await expect(misSolicitudes.detail.root.getByText(/ID Solicitud:/)).toContainText(opfId);
-        await expect(misSolicitudes.detail.statusTitle).toHaveText("Póliza emitida");
-        await expect(misSolicitudes.detail.verPolizaEnMiCarteraBtn).toBeVisible();
-    });
+    await test.step(`Abrir la solicitud en "${OPF_LABEL_APROBADA}" y validar el ID`, () =>
+        reintentarRecargando(page, `Abrir ${opfId} en Mis Solicitudes`, async () => {
+            await misSolicitudes.abrirSolicitudAutomotorPorId(opfId, OPF_LABEL_APROBADA, OPF_COMPANY_OPTION[companyEnum]);
+            await expect(misSolicitudes.detail.root.getByText(/ID Solicitud:/)).toContainText(opfId);
+            await expect(misSolicitudes.detail.statusTitle).toHaveText("Póliza emitida");
+            await expect(misSolicitudes.detail.verPolizaEnMiCarteraBtn).toBeVisible();
+        }),
+    );
 
-    await test.step('"Ver póliza en Mi Cartera" lleva a Mi Cartera con la póliza emitida', async () => {
-        const documentacionPromise = miCartera.waitForDocumentacion();
-        await misSolicitudes.detail.verPolizaEnMiCarteraBtn.click();
-        await expect(page).toHaveURL(/\/u\/micartera/, { timeout: 30000 });
+    await test.step('"Ver póliza en Mi Cartera" lleva a Mi Cartera con la póliza emitida', () =>
+        reintentarRecargando(
+            page,
+            "Cargar Mi Cartera",
+            async (intento) => {
+                // Primer intento por el botón; en los reintentos se recarga Mi Cartera escuchando getDocumentacion.
+                const documentacionPromise = miCartera.waitForDocumentacion(undefined, 60000);
+                documentacionPromise.catch(() => undefined);
+                if (intento === 1) {
+                    await misSolicitudes.detail.verPolizaEnMiCarteraBtn.click();
+                } else if (/\/u\/micartera/.test(page.url())) {
+                    await page.reload({ waitUntil: "domcontentloaded" });
+                } else {
+                    await page.goto("/u/micartera", { waitUntil: "domcontentloaded" });
+                }
+                await expect(page).toHaveURL(/\/u\/micartera/, { timeout: 30000 });
 
-        const documentacion = await documentacionPromise;
-        expect(documentacion.ok(), `getDocumentacion respondió ${documentacion.status()}`).toBe(true);
-        if (idEmision) {
-            const json = await documentacion.json();
-            const polizasPolko: any[] = Array.isArray(json) ? json : json?.polizas_polko ?? [];
-            const ids = polizasPolko.map((item) => item.idEmision ?? item.id);
-            expect(ids, `La emisión ${idEmision} no está en Mi Cartera`).toContain(idEmision);
-        }
-        await miCartera.waitForListaCargada();
-        await miCartera.irATab(TAB_EMITIDAS_POLKO);
-    });
+                const documentacion = await documentacionPromise;
+                expect(documentacion.ok(), `getDocumentacion respondió ${documentacion.status()}`).toBe(true);
+                if (idEmision) {
+                    const json = await documentacion.json();
+                    const polizasPolko: any[] = Array.isArray(json) ? json : json?.polizas_polko ?? [];
+                    const ids = polizasPolko.map((item) => item.idEmision ?? item.id);
+                    expect(ids, `La emisión ${idEmision} no está en Mi Cartera`).toContain(idEmision);
+                }
+                await miCartera.waitForListaCargada();
+                await miCartera.irATab(TAB_EMITIDAS_POLKO);
+            },
+            { recargar: false },
+        ),
+    );
 
     if (!patente) return;
     await test.step(`Encontrar la póliza en Mi Cartera buscando la patente ${patente}`, async () => {

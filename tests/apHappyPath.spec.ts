@@ -8,6 +8,7 @@ import CotizarAPIAPage, {
 import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { mockUserDataString } from "../helpers/mockUser";
 import { documentarCaso } from "../helpers/documentarCaso";
+import { validarComparadorAP } from "../helpers/comparadorCotizacion";
 import { CUIT_ASEGURADO, CUIT_ASEGURADO_B, CUIT_TOMADOR_FISICA, CUIT_TOMADOR_JURIDICA } from "../data/apRoles";
 
 /**
@@ -72,13 +73,13 @@ function registerHappyPathSuite(
     emitOpts: EmitirOptsAP,
 ): void {
     test.describe(suiteTitle, () => {
-        test.afterEach(async ({}, testInfo) => {
-            await attachBackendLogsOnFailure(testInfo);
+        test.afterEach(async ({ page }, testInfo) => {
+            await attachBackendLogsOnFailure(testInfo, page);
         });
 
         for (const producto of Object.values(PRODUCTOS_AP)) {
             for (const plan of PLANES_AP) {
-                test(`Sancor ${producto}: cotizar y emitir "${plan}"`, async ({ page }) => {
+                test(`Sancor ${producto}: cotizar y emitir "${plan}"`, async ({ page }, testInfo) => {
                     // Alta de matriz + emisión Sancor ≈ 70s; cotizar ≈ 15s.
                     test.setTimeout(300000);
                     const formaPago = emitOpts.formaPago ?? "Efectivo";
@@ -93,6 +94,8 @@ function registerHappyPathSuite(
                             `Cotiza Accidentes Personales (${cotizacion.vigencia}, ${cotizacion.cantPersonas} personas, ` +
                             `tarea "${cotizacion.tarea}") con el cotizador de AP IA y emite en Sancor el plan "${plan}" ` +
                             `del producto ${producto} pagando con ${formaPago}. ` +
+                            "Antes de emitir, lo agrega al comparador y valida que el modal y el PDF de cotización " +
+                            "muestren el mismo premio total que la fila. " +
                             "Espera que el plan tenga precio y que la emisión sea exitosa.",
                         precondiciones:
                             "Usuario logueado (storageState del project), datos de usuario mockeados con Sancor habilitada, " +
@@ -122,6 +125,10 @@ function registerHappyPathSuite(
                     await test.step(`Validar que ${producto} / ${plan} tenga precio`, async () => {
                         await cotizarAP.esperarPlan(producto, plan);
                         expect(await cotizarAP.planPrecio(producto, plan)).toBeGreaterThan(0);
+                    });
+
+                    await test.step(`Comparar ${producto} / ${plan} y validar que el PDF de cotización tenga el mismo premio`, async () => {
+                        await validarComparadorAP(page, testInfo, cotizarAP, producto, plan, `${producto}-${plan}`);
                     });
 
                     await test.step(`Emitir ${producto} / ${plan} con ${formaPago}`, async () => {

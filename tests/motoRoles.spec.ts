@@ -16,8 +16,8 @@ import { MOTO_ROLES_CASES, COBERTURA_ROLES_MOTO_POR_COMPANIA } from "../data/mot
  */
 
 test.describe("Moto - Roles de cliente por compañía @regression", () => {
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     test("matriz de cobertura: roles comprometidos por compañia estan en algun caso", () => {

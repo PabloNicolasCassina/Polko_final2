@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from "@playwright/test";
 import { settleValueIfPresent } from "../helpers/settleLocalidad";
+import { isCompactViewport } from "../helpers/viewport";
 
 const FIELD_TIMEOUT = 30000;
 
@@ -55,6 +56,22 @@ export default class EmisionCliente {
         this.errorMatriz = page.getByText("Hubo un problema al crear la");
         this.cargaMatriz = page.getByText("Generando alta de matriz con");
         this.radioButtonOtro = page.getByRole("radio", { name: "Otro" });
+    }
+
+    /**
+     * En iPhone SE la fila "Buscar" + "Completar datos manualmente" desborda en horizontal: Chrome agranda
+     * el layout viewport y el click por coordenadas cae sobre el label "Buscar cliente". Con teclado no depende del layout.
+     */
+    async buscarEnNosis(): Promise<void> {
+        if (isCompactViewport(this.page)) {
+            await this.buscarBtn.press("Enter");
+        } else {
+            await this.buscarBtn.click();
+        }
+        // Mientras Nosis responde "Siguiente" ya está habilitado pero no avanza.
+        await expect(this.page.locator(".emissionClientSearch__searchButtonWrap .button__loading--visible")).toHaveCount(0, {
+            timeout: 90000,
+        });
     }
 
     getEditarClienteBtn(index: number): Locator {
@@ -128,7 +145,7 @@ export default class EmisionCliente {
 
         await expect(this.nosisInput).toBeVisible({ timeout: FIELD_TIMEOUT });
         await this.nosisInput.fill(dniCuit);
-        await this.buscarBtn.click();
+        await this.buscarEnNosis();
         await this.completarPostNosis(index, dniCuit, opts);
         return index;
     }
@@ -193,7 +210,7 @@ export default class EmisionCliente {
         }
         await expect(this.nosisInput).toBeVisible({ timeout: FIELD_TIMEOUT });
         await this.nosisInput.fill(dniCuit);
-        await this.buscarBtn.click();
+        await this.buscarEnNosis();
         // El adicional suele ser índice 1 bajo el asegurado PJ.
         await this.completarPostNosis(1, dniCuit, opts);
         return true;

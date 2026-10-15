@@ -21,10 +21,12 @@ import {
     type PairwiseFactor,
     type PairwiseRow,
 } from "../helpers/pairwise";
+import autosData from "../data/autos.json";
 
 /**
  * Matrix pairwise de "Configuración avanzada" de auto + emisión.
  * Mock: `mocks/mockUserDataATM.json` (Fed + Mercantil).
+ * Vehículo: autos genéricos de `data/autos.json` (sin `testType`, Física + CF) como factor pairwise.
  *
  * Dependencias filtradas (no confiar en opciones stale del listbox):
  *   ATM Efectivo → solo Bimestral|Trimestral (no Mensual)
@@ -39,13 +41,38 @@ import {
  *   npx playwright test tests/autoConfigAvanzada.spec.ts --project=mobile
  */
 
-const VEHICULO = {
-    marca: "RENAULT",
-    año: "2022",
-    modelo: "LOGAN",
-    version: "LOGAN II 1.6 16V INTENS L/19",
-    c_postal: "5000",
+type AutoFixture = {
+    marca: string;
+    año: string;
+    modelo: string;
+    version: string;
+    c_postal: string;
+    ceroKm?: boolean;
+    tipoPersona?: string;
+    sitImpositiva?: string;
+    testType?: string;
 };
+
+/** Clave corta para el eje pairwise + título del test. */
+function autoKey(auto: AutoFixture): string {
+    return `${auto.marca} ${auto.modelo} ${auto.año}`;
+}
+
+const AUTOS: AutoFixture[] = (autosData.autos as AutoFixture[]).filter(
+    (a) => !a.testType && a.tipoPersona === "Física" && a.sitImpositiva === "Consumidor final",
+);
+const AUTO_BY_KEY: Record<string, AutoFixture> = Object.fromEntries(
+    AUTOS.map((a) => [autoKey(a), a]),
+);
+const AUTO_KEYS = Object.keys(AUTO_BY_KEY);
+
+function autoFromRow(row: PairwiseRow): AutoFixture {
+    const key = row.vehiculo;
+    if (typeof key !== "string" || !AUTO_BY_KEY[key]) {
+        throw new Error(`Fila pairwise sin vehículo válido: ${String(key)}`);
+    }
+    return AUTO_BY_KEY[key];
+}
 
 /** Mismo plan representativo que autoHappyPath (gama media). */
 const PLAN_POR_COMPANIA: Record<string, string> = {
@@ -111,7 +138,9 @@ function factorsForCompany(compania: string): PairwiseFactor[] {
     const companyOptions = CONFIG_AVANZADA_OPTIONS_BY_COMPANY_AUTO[compania] ?? {};
     const pfcPairs = pagoFacturacionCuotasPairs(compania);
     const fcPairs = facturacionCuotasPairs(compania);
-    const factors: PairwiseFactor[] = [];
+    const factors: PairwiseFactor[] = [
+        { name: "vehiculo", values: AUTO_KEYS },
+    ];
 
     for (const field of fields) {
         if (disabled.has(field)) continue;
@@ -179,8 +208,10 @@ function isConfigRowValid(compania: string, row: PairwiseRow): boolean {
     return true;
 }
 
+/** Expande packed dependants → campos reales. Quita `vehiculo`. */
 function expandConfigRow(row: PairwiseRow): PairwiseRow {
     const out: PairwiseRow = { ...row };
+    delete out.vehiculo;
     const packedPago = out.pago_facturacion_cuotas;
     if (typeof packedPago === "string" && packedPago.split("|").length === 3) {
         const [formaDePago, facturacion, cuotas] = packedPago.split("|");
@@ -213,8 +244,8 @@ function formaPagoEmision(row: PairwiseRow): string {
 test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () => {
     test.describe.configure({ retries: 1 });
 
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     for (const compania of Object.keys(PLAN_POR_COMPANIA)) {
@@ -223,7 +254,7 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
 
         test.describe(compania, () => {
             for (const [idx, row] of rows.entries()) {
-                const label = factors.length === 0 ? "defaults" : formatPairwiseRow(row);
+                const label = formatPairwiseRow(row);
                 const nombrePlan = planParaFila(compania, row);
                 const codigo = PLAN_CODES_AUTO[compania][nombrePlan];
 
@@ -231,6 +262,7 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                     page,
                 }) => {
                     test.setTimeout(360000);
+                    const auto = autoFromRow(row);
                     const configValues = expandConfigRow(row);
                     const formaPago = formaPagoEmision(configValues);
 
@@ -241,9 +273,10 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                         severidad: "normal",
                         prioridad: "medium",
                         descripcion:
-                            `Cotiza un ${VEHICULO.marca} ${VEHICULO.modelo} ${VEHICULO.año} con el cotizador de Auto IA, ` +
+                            `Cotiza un ${auto.marca} ${auto.version} ${auto.año} con el cotizador de Auto IA, ` +
                             `selecciona ${compania}, aplica la combinación pairwise PW${idx + 1} de configuración avanzada ` +
-                            `(${label}) y emite el plan "${nombrePlan}" (${codigo}) pagando con ${formaPago}. ` +
+                            `(${label}) y emite el plan "${nombrePlan}" (${codigo}, o el primero disponible si el vehículo ` +
+                            `o la configuración lo ocultan) pagando con ${formaPago}. ` +
                             "Espera que el plan tenga precio con la configuración aplicada y que la emisión sea exitosa " +
                             "con número de emisión y documentos descargables.",
                         precondiciones:
@@ -251,6 +284,7 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                             "frontend en localhost:3000 y backends levantados.",
                         parametros: {
                             Compañía: compania,
+                            Vehículo: `${auto.marca} ${auto.version} ${auto.año}`,
                             Plan: `${nombrePlan} (${codigo})`,
                             "Forma de pago emisión": formaPago,
                             ...pairwiseRowToParams(configValues),
@@ -265,8 +299,8 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                         await cotizarAutoIA.goto();
                     });
 
-                    await test.step(`Cotizar ${VEHICULO.marca} ${VEHICULO.modelo} ${VEHICULO.año} y seleccionar ${compania}`, async () => {
-                        await cotizarAutoIA.cotizarVehiculo(VEHICULO);
+                    await test.step(`Cotizar ${auto.marca} ${auto.modelo} ${auto.año} y seleccionar ${compania}`, async () => {
+                        await cotizarAutoIA.cotizarVehiculo(auto);
                         await cotizarAutoIA.selectCompania(compania);
                     });
 
@@ -276,14 +310,16 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                         });
                     }
 
-                    await test.step(`Validar que el plan ${codigo} tenga precio`, async () => {
-                        const plan = cotizarAutoIA.planCard(codigo);
+                    const codigoEmitir = await test.step(`Validar que el plan ${codigo} tenga precio`, async () => {
+                        const codigoResuelto = await cotizarAutoIA.resolvePlanCodeOrFirst(codigo);
+                        const plan = cotizarAutoIA.planCard(codigoResuelto);
                         await expect(plan).toBeVisible();
                         await expect(plan.locator(".ctrowAuto__price")).not.toHaveText("$0");
+                        return codigoResuelto;
                     });
 
-                    await test.step(`Emitir el plan ${codigo} con ${formaPago}`, async () => {
-                        await cotizarAutoIA.emitirPlan(codigo, {
+                    await test.step(`Emitir el plan ${codigoEmitir} con ${formaPago}`, async () => {
+                        await cotizarAutoIA.emitirPlan(codigoEmitir, {
                             formaPago,
                             skipInspeccion: SKIP_INSPECCION[compania] === true,
                         });

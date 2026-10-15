@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import { test as setup, expect } from '@playwright/test';
-import { qase } from 'playwright-qase-reporter';
 import * as fs from 'fs';
 import path from 'path'; // Es buena práctica importar path para manejar rutas
 
@@ -10,7 +9,6 @@ const authDir = '.auth';
 const authFile = path.join(authDir, 'userPre.json');
 
 setup('authentication - manual step required', async ({ page }) => {
-  qase.ignore();
   // Verifica si el archivo de autenticación ya existe
   if (fs.existsSync(authFile)) {
     console.log(`El archivo de autenticación ya existe en ${authFile}. Saltando setup.`);

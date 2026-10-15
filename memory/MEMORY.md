@@ -5,7 +5,7 @@ Playwright E2E test suite for Polko insurance platform.
 
 ## Key Patterns (tests/autoHappyPath.spec.ts as gold standard)
 - Top-level `test.describe("<Producto> - <Feature> @regression")`, tests generated per company from `data/*`
-- `attachBackendLogsOnFailure(testInfo)` in `test.afterEach` (helpers/backendLogs.ts)
+- `attachBackendLogsOnFailure(testInfo, page)` in `test.afterEach` (helpers/backendLogs.ts)
 - User mock route (`**/newGetDatosUsuario*` → `mockUserDataString`) applied BEFORE navigating
 - Local page object instances per test (never module-level globals)
 - `test.step` per business step; `documentarCaso()` (helpers/documentarCaso.ts) for report metadata

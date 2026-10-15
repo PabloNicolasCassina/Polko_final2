@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from "@playwright/test";
+import { Page, Locator, expect, test } from "@playwright/test";
 import path from "path";
 import CommonButtons from "../components/commonButtons";
 import CotizacionVehiculo from "../components/auto/cotizacionVehiculo";
@@ -13,6 +13,7 @@ import CtrowAutoTable from "../components/ctrowAutoTable";
 import QuotationSidebar from "../components/quotationSidebar";
 import { settleLocalidadIfPresent } from "../helpers/settleLocalidad";
 import { reportarNumeroEmision } from "../helpers/reportePoliza";
+import { parseMontoArs } from "../helpers/pdfPoliza";
 
 /**
  * Page Object de /u/cotizar/automotor — cotización, config avanzada por
@@ -391,6 +392,22 @@ export function cuitFromDni(dni: string, genero: "M" | "F" = "M"): string {
     return `${tipo}${dni8}${dv}`;
 }
 
+export type EmitirPlanOpts = {
+    formaPago?: string;
+    dniCuit?: string;
+    localidad?: string;
+    mail?: string;
+    telefono?: string;
+    clientesAdicionales?: Array<{
+        rol: string;
+        dniCuit: string;
+        localidad?: string;
+        mail?: string;
+        telefono?: string;
+    }>;
+    completarRolTab?: { rol: string; dniCuit: string };
+};
+
 export default class CotizarAutoIAPage {
     readonly page: Page;
     readonly buttons: CommonButtons;
@@ -550,9 +567,27 @@ export default class CotizarAutoIAPage {
         }
     }
 
+    /** Código del plan preferido si está visible; si no, el primero de la tabla (según vehículo/config). */
+    async resolvePlanCodeOrFirst(preferredCode: string): Promise<string> {
+        const preferred = this.planCard(preferredCode);
+        if ((await preferred.count()) > 0) {
+            const visible = await preferred.first().isVisible().catch(() => false);
+            if (visible) return preferredCode;
+        }
+        const firstCard = this.page.locator(".ctrowAuto").first();
+        await expect(firstCard).toBeVisible({ timeout: QUOTE_TIMEOUT });
+        const code = (await firstCard.locator(".ctrowAuto__code").innerText()).trim();
+        if (!code) {
+            throw new Error("No hay coberturas en la tabla de cotización para usar de fallback");
+        }
+        return code;
+    }
+
     async selectCompania(label: string): Promise<void> {
         await this.sidebar.seleccionarCompania(label);
-        await expect(this.page.locator(".ctrowAuto").first()).toBeVisible({ timeout: QUOTE_TIMEOUT });
+        await this.conRecotizar(() =>
+            expect(this.page.locator(".ctrowAuto").first()).toBeVisible({ timeout: QUOTE_TIMEOUT }),
+        );
     }
 
     companySuccessBadge(label: string): Locator {
@@ -564,7 +599,26 @@ export default class CotizarAutoIAPage {
             await this.sidebar.esperarCotizacionCompania(company, timeout);
             return;
         }
-        await this.sidebar.esperarAlgunaCotizacion(timeout, ".ctrowAuto");
+        await this.conRecotizar(() => this.sidebar.esperarAlgunaCotizacion(timeout, ".ctrowAuto"));
+    }
+
+    /**
+     * Bajo carga la compañía seleccionada a veces queda en "No se pudo obtener cotización": si aparece
+     * "Recotizar", lo usa una vez y vuelve a esperar. Sin ese botón (o si vuelve a fallar) propaga el error.
+     */
+    private async conRecotizar(esperar: () => Promise<void>): Promise<void> {
+        try {
+            await esperar();
+        } catch (error) {
+            const recotizar = this.page.getByRole("button", { name: "Recotizar", exact: true });
+            if (!(await recotizar.first().isVisible().catch(() => false))) throw error;
+            test.info().annotations.push({
+                type: "warning",
+                description: 'La cotización no respondió a tiempo: se usó "Recotizar" y se reintenta',
+            });
+            await recotizar.first().click();
+            await esperar();
+        }
     }
 
     async assertEmisionExitosa(): Promise<void> {
@@ -728,7 +782,6 @@ export default class CotizarAutoIAPage {
     emitirBtn(code: string): Locator {
         return this.ctrowTable.emitirBtn(code);
     }
-
     get formaPagoSelect(): Locator {
         return this.page.locator('[id="select_infoDePago.formaDePago"]');
     }
@@ -770,16 +823,27 @@ export default class CotizarAutoIAPage {
     }
 
     /** Assert del número en éxito: póliza → propuesta → trámite. */
-    async assertNumeroEmision(): Promise<void> {
+    async assertNumeroEmision(): Promise<{ tipo: string; numero: string }> {
         if ((await this.numeroPolizaValue.count()) > 0) {
-            await reportarNumeroEmision(this.numeroPolizaValue);
-            return;
+            const tipo = "Número de póliza";
+            return { tipo, numero: await reportarNumeroEmision(this.numeroPolizaValue, tipo) };
         }
         if ((await this.numeroPropuestaValue.count()) > 0) {
-            await reportarNumeroEmision(this.numeroPropuestaValue, "Número de propuesta");
-            return;
+            const tipo = "Número de propuesta";
+            return { tipo, numero: await reportarNumeroEmision(this.numeroPropuestaValue, tipo) };
         }
-        await reportarNumeroEmision(this.numeroTramiteValue, "Número de trámite");
+        const tipo = "Número de trámite";
+        return { tipo, numero: await reportarNumeroEmision(this.numeroTramiteValue, tipo) };
+    }
+
+    /** Premio por cuota del plan en la tabla y cantidad de cuotas ("Mismo precio por N meses"). */
+    async precioPlan(code: string): Promise<{ premio: number; cuotas: number }> {
+        const card = this.planCard(code);
+        const premio = parseMontoArs((await card.locator(".ctrowAuto__price").innerText()).trim());
+        const adicional = card.locator(".new__ctrow__textAdicional");
+        const textoCuotas = (await adicional.count()) > 0 ? await adicional.first().innerText() : "";
+        const cuotas = Number(textoCuotas.match(/(\d+)\s*mes/i)?.[1] ?? 1);
+        return { premio, cuotas };
     }
 
     get anyDocumentoDescargarBtn(): Locator {
@@ -935,34 +999,9 @@ export default class CotizarAutoIAPage {
      */
     async emitirPlan(
         code: string,
-        opts: {
-            formaPago?: string;
-            dniCuit?: string;
-            skipInspeccion?: boolean;
-            localidad?: string;
-            mail?: string;
-            telefono?: string;
-            clientesAdicionales?: Array<{
-                rol: string;
-                dniCuit: string;
-                localidad?: string;
-                mail?: string;
-                telefono?: string;
-            }>;
-            completarRolTab?: { rol: string; dniCuit: string };
-        } = {},
-    ): Promise<void> {
-        await this.emitirBtn(code).click();
-
-        // FedPat "cliente nuevo": pide DNI fresco antes de abrir el wizard de emisión.
-        const dniClienteNuevo = await this.completarModalDniClienteNuevoSiAparece(opts.dniCuit);
-        const dniParaNosis = opts.dniCuit ?? dniClienteNuevo ?? "27381618426";
-
-        await this.completarPasoPoliza(opts.formaPago);
-
-        await this.completarPasoCliente(dniParaNosis, opts, dniClienteNuevo);
-
-        await this.completarPasoDetalleVehiculo();
+        opts: EmitirPlanOpts & { skipInspeccion?: boolean } = {},
+    ): Promise<{ patente: string }> {
+        const { patente } = await this.avanzarHastaPasoInspeccion(code, opts);
 
         if (!opts.skipInspeccion) {
             await this.completarPasoInspeccion();
@@ -977,6 +1016,30 @@ export default class CotizarAutoIAPage {
         await expect(this.emisionExitosaHeading.or(this.emisionFinal.errorEmision)).toBeVisible({
             timeout: QUOTE_TIMEOUT * 2,
         });
+        return { patente };
+    }
+
+    /**
+     * Abre el asistente desde la tarjeta del plan y completa Póliza, Cliente y
+     * Detalle del vehículo. Queda parado en el paso Inspección (o en revisión si la
+     * compañía no la pide).
+     */
+    async avanzarHastaPasoInspeccion(
+        code: string,
+        opts: EmitirPlanOpts = {},
+    ): Promise<{ patente: string }> {
+        await this.emitirBtn(code).click();
+
+        // FedPat "cliente nuevo": pide DNI fresco antes de abrir el wizard de emisión.
+        const dniClienteNuevo = await this.completarModalDniClienteNuevoSiAparece(opts.dniCuit);
+        const dniParaNosis = opts.dniCuit ?? dniClienteNuevo ?? "27381618426";
+
+        await this.completarPasoPoliza(opts.formaPago);
+
+        await this.completarPasoCliente(dniParaNosis, opts, dniClienteNuevo);
+
+        const patente = await this.completarPasoDetalleVehiculo();
+        return { patente };
     }
 
     /**
@@ -1024,8 +1087,8 @@ export default class CotizarAutoIAPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    /** Paso "Detalle del vehículo": patente, motor y chasis aleatorios si vienen vacíos, y Siguiente. */
-    async completarPasoDetalleVehiculo(): Promise<void> {
+    /** Paso "Detalle del vehículo": patente, motor y chasis aleatorios si vienen vacíos, y Siguiente. Devuelve la patente. */
+    async completarPasoDetalleVehiculo(): Promise<string> {
         await expect(this.emisionDetalleAuto.patenteInput).toBeVisible({ timeout: QUOTE_TIMEOUT });
         if (!(await this.emisionDetalleAuto.patenteInput.inputValue())) {
             await this.emisionDetalleAuto.patenteInput.fill(
@@ -1038,7 +1101,9 @@ export default class CotizarAutoIAPage {
                 this.emisionDetalleAuto.generarNroChasisAleatorio(),
             );
         }
+        const patente = (await this.emisionDetalleAuto.patenteInput.inputValue()).trim();
         await this.buttons.siguienteBtn.click();
+        return patente;
     }
 
     /**
@@ -1064,7 +1129,7 @@ export default class CotizarAutoIAPage {
     ): Promise<void> {
         await expect(this.page.getByText("Buscar cliente")).toBeVisible({ timeout: FIELD_TIMEOUT });
         await this.emisionCliente.nosisInput.fill(dniParaNosis);
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
 
         // Post-Nosis según CUIT (misma lógica que emisionAutoPage.emitirCliente / autos.json).
         if (dniParaNosis === "30711392404") {
@@ -1137,7 +1202,8 @@ export default class CotizarAutoIAPage {
                 .or(noInspeccion)
                 .or(irInspeccion)
                 .or(tituloMercantil)
-                .or(revision),
+                .or(revision)
+                .first(),
         ).toBeVisible({ timeout: FIELD_TIMEOUT });
 
         if (await noInspeccion.isVisible().catch(() => false)) {
@@ -1195,7 +1261,7 @@ export default class CotizarAutoIAPage {
                 await expect(this.buttons.siguienteBtn).toBeEnabled({ timeout: FIELD_TIMEOUT });
                 await this.buttons.siguienteBtn.click();
             } else if (mode !== "revision") {
-                const linkError = this.page.getByText(/No pudimos obtener el enlace de inspección/);
+                const linkError = this.emisionInspeccion.msgFetchError;
                 const detalle = (await linkError.isVisible().catch(() => false))
                     ? ` — el front muestra: "${(await linkError.innerText()).trim()}"`
                     : "";

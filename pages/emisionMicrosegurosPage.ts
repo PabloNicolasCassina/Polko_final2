@@ -69,7 +69,7 @@ export default class EmisionMicrosegurosPage {
 
     async completarCliente(dni: string) {
         await this.emisionCliente.nosisInput.fill(dni);
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
 
         const localidadSearchbox = this.page.getByRole("searchbox", { name: "Localidad" });
         await expect(localidadSearchbox).toHaveValue(/.+/, { timeout: 60000 });

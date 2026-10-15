@@ -35,8 +35,8 @@ async function applyUserMock(page: import("@playwright/test").Page): Promise<voi
 }
 
 test.describe("AP - Roles de cliente @regression", () => {
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     test("matriz de cobertura: todos los roles y variantes de beneficiario estan en algun caso", () => {

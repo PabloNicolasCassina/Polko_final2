@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { isCompactViewport } from "../helpers/viewport";
+import { isCompactViewport, isNarrowViewport } from "../helpers/viewport";
+import { verificarSinDesbordeHorizontal } from "../helpers/mobileLayout";
 
 export type MisSolicitudesTab = "Aseguradoras" | "Automotor" | "ART";
 
@@ -99,16 +100,46 @@ export default class MisSolicitudesPage {
         await expect(this.automotorFiltersPanel).toBeVisible({ timeout: 10000 });
     }
 
+    /** Mobile: Automotor sin filtros desktop duplicados ni desborde horizontal. No-op en desktop. Asserts soft. */
+    async verificarLayoutMobileAutomotor(): Promise<void> {
+        if (!isCompactViewport(this.page)) return;
+        await expect
+            .soft(
+                this.page.locator(".MiCarteraEmissions__filters--desktop"),
+                "Los filtros desktop no deberían verse en mobile (se duplican con los mobile)",
+            )
+            .toBeHidden();
+        await expect.soft(this.automotorFilters, "Los filtros mobile deberían verse").toBeVisible();
+        await verificarSinDesbordeHorizontal(this.page, {
+            encabezado: this.header,
+            "filtros mobile": this.automotorFilters,
+            "primera card del listado": this.automotorCards,
+        });
+    }
+
+    async verificarLayoutMobileArt(): Promise<void> {
+        await verificarSinDesbordeHorizontal(this.page, {
+            encabezado: this.header,
+            "filtros ART": this.artFilters,
+        });
+    }
+
     private async abrirFiltrosSiSelectAutomotor(selectInput: Locator): Promise<void> {
         if (selectInput === this.automotorCompanySelect || selectInput === this.automotorStatusSelect) {
             await this.abrirFiltrosAutomotorSiMobile();
         }
     }
 
+    /** Automotor muestra solo el número; ART, "N resultados". */
     async getResultadosCount(): Promise<number> {
         const text = (await this.counter.textContent()) ?? "";
-        const match = text.match(/(\d+)\s+resultados?/i);
+        const match = text.match(/^\s*(\d+)/);
         return match ? Number(match[1]) : 0;
+    }
+
+    /** Label que debería verse en el botón volver del detalle según el ancho. */
+    backLabelVisible(labelCompleto: string): string {
+        return isNarrowViewport(this.page) ? "Volver" : labelCompleto;
     }
 
     async buscarAutomotor(texto: string): Promise<void> {
@@ -210,6 +241,7 @@ export default class MisSolicitudesPage {
         return {
             root,
             backButton: root.locator(".MiCarteraClientDetail__backButton"),
+            backLabel: root.locator(".MiCarteraClientDetail__backButton").filter({ visible: true }),
             title: root.locator(".MiCarteraClientDetail__title"),
             document: root.locator(".MiCarteraClientDetail__document"),
             notice: root.locator(".MiCarteraClientDetail__notice"),

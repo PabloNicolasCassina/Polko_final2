@@ -6,6 +6,7 @@
   "scripts": {
     "auth": "AUTH_PATH='.auth/userPre.json'; [ -f \"$AUTH_PATH\" ] && rm -f \"$AUTH_PATH\"; playwright test tests/auth.setup.pre.ts --debug",
     "auth:sancor": "AUTH_PATH='.auth/sancorPortal.json'; [ -f \"$AUTH_PATH\" ] && rm -f \"$AUTH_PATH\"; playwright test tests/sancorAuth.pre.ts --project=setup-sancor --debug",
+    "auth:admin": "rm -f .auth/userAdmin.json && npx ts-node tests/auth.setup.admin.ts",
     "codegen": "playwright codegen --load-storage=.auth/userPre.json http://localhost:3000/u/dashboard",
     "test:regresion": "playwright test tests/regresionFinal.spec.ts --project=chromium",
     "allure:clean": "rm -rf allure-results allure-report",
@@ -27,8 +28,7 @@
     "allure-playwright": "^3.4.5",
     "dotenv": "^17.2.3",
     "pdfjs-dist": "^5.4.624",
-    "playwright": "^1.57.0",
-    "playwright-qase-reporter": "^2.7.0"
+    "playwright": "^1.57.0"
   },
   "dependencies": {
     "csv-parse": "^6.2.1",

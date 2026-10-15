@@ -56,22 +56,6 @@ const allureReporter: ReporterDescription = ['allure-playwright', {
   },
 }];
 
-/**
- * Qase publica cada corrida en el proyecto QASE_TESTOPS_PROJECT. Sin token queda apagado;
- * con QASE_MODE=off se apaga puntualmente aunque el token esté en `.env`. Con `--list` no publica.
- */
-const isListOnly = process.argv.includes('--list');
-
-const qaseReporter: ReporterDescription = ['playwright-qase-reporter', {
-  mode: process.env.QASE_TESTOPS_API_TOKEN && !isListOnly ? 'testops' : 'off',
-  testops: {
-    api: { token: process.env.QASE_TESTOPS_API_TOKEN },
-    project: process.env.QASE_TESTOPS_PROJECT ?? 'POLKOFINAL',
-    uploadAttachments: true,
-    run: { complete: true },
-  },
-}];
-
 /** Specs de Últimas cotizaciones: van por projects dedicados (seed → acciones). */
 const ultimasCotizacionesIgnore = '**/ultimasCotizaciones*.spec.ts';
 
@@ -92,13 +76,12 @@ export default defineConfig({
   workers: process.env.CI ? 1 : process.env.WORKERS ? parseInt(process.env.WORKERS) : 4,
 
   reporter: process.env.CI
-    ? [['html'], ['github'], allureReporter, qaseReporter, ['json', { outputFile: 'playwright-report/results.json' }]]
+    ? [['html'], ['github'], allureReporter, ['json', { outputFile: 'playwright-report/results.json' }]]
     : [
         ['html'],
         ['list', { printSteps: true }],
         ['json', { outputFile: 'playwright-report/results.json' }],
         allureReporter,
-        qaseReporter,
       ],
 
   use: {

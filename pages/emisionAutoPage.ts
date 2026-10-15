@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from "@playwright/test";
+import { Page, Locator, TestInfo, expect } from "@playwright/test";
 import path from "path";
 import CommonButtons from "../components/commonButtons";
 import CotizacionVehiculo from "../components/auto/cotizacionVehiculo";
@@ -13,6 +13,25 @@ import EmisionInspeccion from "../components/auto/emisionInspeccion";
 import EmisionInspeccionMercantilAndina from "../components/auto/emisionInspeccionMercantilAndina";
 import EmisionFinal from "../components/emisionFinal";
 import { setupReactErrorGuard } from "../helpers/reactErrorGuard";
+import CtrowAutoTable from "../components/ctrowAutoTable";
+import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
+
+export interface TablaCotizacionOptions {
+    validarPdfComparacion?: TestInfo;
+}
+
+/** Código de la tarjeta `.ctrowAuto` que se compara por compañía (el mismo que emite `CotizacionTabla.companiasMap`). */
+const PLAN_COMPARADOR_POR_COMPANIA: Record<string, string> = {
+    sancor: "12",
+    rivadavia: "M",
+    experta: "942",
+    federacion_patronal: "CF",
+    zurich: "CG",
+    atm: "C2",
+    rus: "S0",
+    triunfo: "C8",
+    mercantil_andina: "923",
+};
 
 
 export default class EmisionAutoPage {
@@ -108,7 +127,11 @@ export default class EmisionAutoPage {
         //}
     }
 
-    async tablaCotizacion(auto: any, compania: string) {
+    /**
+     * @param opciones.validarPdfComparacion si se pasa el TestInfo, agrega el plan de la compañía al comparador,
+     *   valida el premio del drawer, descarga el PDF de cotización y verifica que muestre el mismo premio.
+     */
+    async tablaCotizacion(auto: any, compania: string, opciones: TablaCotizacionOptions = {}) {
         await expect(this.cotizacionTabla.configAvanzadaBtn.or(this.cotizacionTabla.cotizacionErrorText)).toBeVisible({ timeout: 180000 });
         const errorVisible = await this.cotizacionTabla.cotizacionErrorText.isVisible();
         if (errorVisible) {
@@ -137,6 +160,25 @@ export default class EmisionAutoPage {
         }
 
         const valorTabla = await this.cotizacionTabla.getValorCoberturaTabla(compania);
+
+        if (opciones.validarPdfComparacion) {
+            const codigo = PLAN_COMPARADOR_POR_COMPANIA[compania.toLowerCase()];
+            expect(codigo, `No hay plan de comparador mapeado para ${compania}`).toBeTruthy();
+            const premio = await validarComparadorCtrowAuto(
+                this.page,
+                opciones.validarPdfComparacion,
+                new CtrowAutoTable(this.page),
+                codigo,
+                `${compania}-${codigo}`,
+            );
+            if (valorTabla) {
+                expect(premio, `El premio comparado no coincide con el de la tabla (${valorTabla})`)
+                    .toBe(Math.round(parseFloat(valorTabla.replace(/\./g, '').replace(',', '.'))));
+            }
+            this.valorSumaAsegurada = await this.cotizacionTabla.getValorSumaAsegurada();
+            console.log(`Valor suma asegurada: ${this.valorSumaAsegurada}`);
+            return;
+        }
 
         await this.cotizacionTabla.clickBtnPlus(compania);
         await this.cotizacionTabla.carritoBtn.click();
@@ -242,7 +284,7 @@ export default class EmisionAutoPage {
 
     async emitirCliente(datosDelTest: any) {
         await this.emisionCliente.nosisInput.fill(datosDelTest.cuitDni)
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
         if (datosDelTest.cuitDni === "27381618426") {
             await this.emisionCliente.fechaNacimientoInput.fill("010100");
             await this.emisionCliente.telefonoInput.fill("3512334798");
@@ -265,7 +307,7 @@ export default class EmisionAutoPage {
         await this.buttons.siguienteBtn.click();
     }
 
-    async emitirDetalleAuto(auto: any) {
+    async emitirDetalleAuto(auto: any): Promise<string> {
         const patente = this.emisionDetalleAuto.generarPatenteAleatoriaAuto();
         const nroMotor = this.emisionDetalleAuto.generarNroMotorAleatorio();
         const nroChasis = this.emisionDetalleAuto.generarNroChasisAleatorio();
@@ -292,6 +334,7 @@ export default class EmisionAutoPage {
             }
         }
         await this.buttons.siguienteBtn.click();
+        return patente;
     }
 
     async emitirInspeccion(datosDelTest?: any) {

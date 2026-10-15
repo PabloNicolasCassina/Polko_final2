@@ -4,6 +4,7 @@ import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { reportarNumeroEmision } from "../helpers/reportePoliza";
 import { mockUserDataString } from "../helpers/mockUser";
 import { documentarCaso } from "../helpers/documentarCaso";
+import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
 
 /**
  * Happy path E2E de motovehículo con `mocks/mockUserDataATM.json` (habilita
@@ -81,14 +82,14 @@ function registerHappyPathSuite(
     emitOpts: { dniCuit: string; localidad?: string; mail?: string; telefono?: string },
 ): void {
     test.describe(suiteTitle, () => {
-        test.afterEach(async ({}, testInfo) => {
-            await attachBackendLogsOnFailure(testInfo);
+        test.afterEach(async ({ page }, testInfo) => {
+            await attachBackendLogsOnFailure(testInfo, page);
         });
 
         for (const [compania, nombrePlan] of Object.entries(PLAN_POR_COMPANIA)) {
             const codigo = PLAN_CODES_MOTO[compania][nombrePlan];
 
-            test(`${compania}: cotizar y emitir "${nombrePlan}" (${codigo})`, async ({ page }) => {
+            test(`${compania}: cotizar y emitir "${nombrePlan}" (${codigo})`, async ({ page }, testInfo) => {
                 // Triunfo puede tardar >60s en cotizar; 180s cubre cotizar+emitir.
                 test.setTimeout(180000);
 
@@ -100,7 +101,8 @@ function registerHappyPathSuite(
                     prioridad: "high",
                     descripcion:
                         `Cotiza una ${vehiculo.marca} ${vehiculo.version} ${vehiculo.año} con el cotizador de Moto IA, ` +
-                        `selecciona ${compania} y emite el plan "${nombrePlan}" (${codigo}) intentando pagar con Efectivo ` +
+                        `selecciona ${compania}, compara el plan "${nombrePlan}" (${codigo}) validando que el PDF de cotización ` +
+                        `muestre el mismo premio que la tarjeta, y lo emite intentando pagar con Efectivo ` +
                         "(si la aseguradora no lo ofrece, usa la forma de pago disponible). " +
                         "Espera emisión exitosa con número de póliza y documentos descargables.",
                     precondiciones:
@@ -132,6 +134,10 @@ function registerHappyPathSuite(
                     const plan = cotizarMotoIA.planCard(codigo);
                     await expect(plan).toBeVisible();
                     await expect(plan.locator(".ctrowAuto__price")).not.toHaveText("$0");
+                });
+
+                await test.step(`Comparar el plan ${codigo} y validar que el PDF de cotización tenga el mismo premio`, async () => {
+                    await validarComparadorCtrowAuto(page, testInfo, cotizarMotoIA.ctrowTable, codigo, `${compania}-${codigo}`);
                 });
 
                 await test.step(`Emitir el plan ${codigo}`, async () => {

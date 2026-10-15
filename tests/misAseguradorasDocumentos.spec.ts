@@ -7,8 +7,8 @@ import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 // POL-2872 (Release 48) - bloques A, B y C del procedimiento de prueba.
 // Usuario: master (userPre.json), vía el proyecto "chromium" (storageState por defecto).
 
-test.afterEach(async ({}, testInfo) => {
-    await attachBackendLogsOnFailure(testInfo);
+test.afterEach(async ({ page }, testInfo) => {
+    await attachBackendLogsOnFailure(testInfo, page);
 });
 
 test.describe("Mis Aseguradoras - Solicitudes de vinculación/apertura (bloques A y B)", () => {

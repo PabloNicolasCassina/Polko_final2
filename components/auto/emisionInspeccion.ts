@@ -52,7 +52,9 @@ export default class EmisionInspeccion {
         this.btnAvisameContinuar = page.getByRole('button', { name: 'Avisame cuando pueda continuar con la emisión' });
         this.msgInspeccionConfirmada = page.getByText('Marcaste la inspección como completada. Podés continuar al siguiente paso.');
         this.msgYaCompletasteVehiculo = page.getByText('Ya completaste la inspección para este vehículo. Podés continuar al siguiente paso.');
-        this.msgFetchError = page.getByText('No pudimos obtener el enlace de inspección de Mercantil Andina');
+        this.msgFetchError = page.getByText(
+            /No pudimos (generar la inspección|obtener el enlace de inspección) de Mercantil Andina/,
+        );
         this.alertTenésCompletarInspeccion = page.getByText('Tenés que completar la inspección en el sitio web de Mercantil Andina antes de continuar.');
         this.alertConfirmáArriba = page.getByText('Confirmá arriba si ya completaste la inspección en Mercantil Andina para poder continuar.');
         this.btnCerrarAviso = page.getByRole('button', { name: 'Cerrar aviso' });

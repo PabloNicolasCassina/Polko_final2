@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import { test as setup } from '@playwright/test';
-import { qase } from 'playwright-qase-reporter';
 import * as fs from 'fs';
 import path from 'path';
 
@@ -11,7 +10,6 @@ const PORTAL_URL = 'https://portalcotizadorintermediarios.gruposancorseguros.com
 const AUTH0_DOMAIN = 'login.gruposancorseguros.com.ar';
 
 setup('sancor portal authentication', async ({ page }) => {
-  qase.ignore();
   if (fs.existsSync(authFile)) {
     console.log(`Sesión Sancor existente en ${authFile}. Saltando setup.`);
     return;

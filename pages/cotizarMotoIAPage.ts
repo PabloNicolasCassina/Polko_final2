@@ -455,13 +455,14 @@ export default class CotizarMotoIAPage {
     }
 
     /** Asserts de éxito de emisión (happy path / regresión). */
-    async assertEmisionExitosa(): Promise<void> {
+    async assertEmisionExitosa(): Promise<string> {
         await expect(this.emisionExitosaHeading.or(this.emisionFinal.errorEmision)).toBeVisible({
             timeout: QUOTE_TIMEOUT * 2,
         });
         await expect(this.emisionFinal.errorEmision).not.toBeVisible();
-        await reportarNumeroEmision(this.numeroPolizaValue);
+        const numero = await reportarNumeroEmision(this.numeroPolizaValue);
         await expect(this.anyDocumentoDescargarBtn.first()).toBeEnabled();
+        return numero;
     }
 
     /**
@@ -784,7 +785,7 @@ export default class CotizarMotoIAPage {
                 telefono?: string;
             }>;
         } = {},
-    ): Promise<void> {
+    ): Promise<{ patente: string }> {
         await this.emitirBtn(code).click();
 
         // Paso 1: Datos de la póliza. El default de "Forma de pago" varía por
@@ -854,7 +855,7 @@ export default class CotizarMotoIAPage {
         await expect(this.page.getByText("Buscar cliente")).toBeVisible({ timeout: FIELD_TIMEOUT });
         const dniParaNosis = opts.dniCuit ?? "27381618426";
         await this.emisionCliente.nosisInput.fill(dniParaNosis);
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
 
         // Post-Nosis según CUIT (autos.json / emisionAutoPage.emitirCliente).
         if (dniParaNosis === "30711392404") {
@@ -896,6 +897,7 @@ export default class CotizarMotoIAPage {
             await this.emisionDetalleMoto.nroMotorInput.fill(this.emisionDetalleMoto.generarNroMotorAleatorio());
             await this.emisionDetalleMoto.nroChasisInput.fill(this.emisionDetalleMoto.generarNroChasisAleatorio());
         }
+        const patente = (await this.emisionDetalleMoto.patenteInput.inputValue()).trim();
         await this.buttons.siguienteBtn.click();
 
         // Paso 4: Inspección — el <input type="file"> del Dropzone está oculto a
@@ -919,5 +921,6 @@ export default class CotizarMotoIAPage {
             .toBeHidden({ timeout: QUOTE_TIMEOUT })
             .catch(() => {});
         await expect(this.emisionExitosaHeading.or(this.emisionFinal.errorEmision)).toBeVisible({ timeout: QUOTE_TIMEOUT * 2 });
+        return { patente };
     }
 }

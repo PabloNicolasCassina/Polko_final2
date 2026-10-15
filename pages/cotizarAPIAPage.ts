@@ -540,6 +540,72 @@ export default class CotizarAPIAPage {
         return match ? Number(match[1].replace(/\./g, "")) : 0;
     }
 
+    /**
+     * Premio TOTAL de una fila (prima × personas), que es el que muestran el comparador y su PDF.
+     * Fuera de los paréntesis, la fila (desktop) y la tarjeta (mobile: "Premio unitario $X / Premio total $Y")
+     * tienen el unitario primero y el total segundo.
+     */
+    async planPrecioTotal(producto: ProductoAP, plan: PlanAP): Promise<number> {
+        const text = (await this.planRow(producto, plan).innerText()).replace(/\([^)]*\)/g, "");
+        const montos = [...text.matchAll(/\$\s?([\d.]+)/g)].map((m) => Number(m[1].replace(/\./g, "")));
+        return montos[1] ?? 0;
+    }
+
+    /** "+" de la fila (desktop) o botón "COMPARAR" de la tarjeta (mobile). */
+    agregarAlComparadorBtn(producto: ProductoAP, plan: PlanAP): Locator {
+        const row = this.planRow(producto, plan);
+        return isMobileViewport(this.page)
+            ? row.getByRole("button", { name: /^comparar$/i })
+            : row.locator(".new__ctrow__icon__plus");
+    }
+
+    /** "−" de la fila (desktop) o botón "QUITAR" de la tarjeta (mobile): el plan ya está en el carrito. */
+    quitarDelComparadorBtn(producto: ProductoAP, plan: PlanAP): Locator {
+        const row = this.planRow(producto, plan);
+        return isMobileViewport(this.page)
+            ? row.getByRole("button", { name: /^quitar$/i })
+            : row.locator(".new__ctrow__icon__minus");
+    }
+
+    /** Botón flotante del carrito de coberturas (con badge de cantidad). */
+    get carritoComparadorFab(): Locator {
+        return this.page.locator(".automotor__cotSuccess__FAB");
+    }
+
+    /** Modal "Detalle de coberturas" del comparador legacy. */
+    get comparadorModal(): Locator {
+        return this.page.locator(".ccomparison__container");
+    }
+
+    get descargarPdfComparacionBtn(): Locator {
+        return this.comparadorModal.getByRole("button", { name: /descargar pdf/i });
+    }
+
+    get cerrarComparadorBtn(): Locator {
+        return this.comparadorModal.getByRole("button", { name: /^atr[aá]s$/i });
+    }
+
+    /** Agrega el plan al carrito y abre el modal de comparación desde el FAB → popover → "Comparar". */
+    async abrirComparador(producto: ProductoAP, plan: PlanAP): Promise<void> {
+        await clickEvenIfOffscreen(this.page, this.agregarAlComparadorBtn(producto, plan));
+        await expect(this.quitarDelComparadorBtn(producto, plan)).toBeVisible();
+        await this.carritoComparadorFab.click();
+        await this.page.locator(".coPopover__container").getByRole("button", { name: "Comparar" }).click();
+        await expect(this.comparadorModal).toBeVisible();
+    }
+
+    /** Premio del plan en el encabezado del modal de comparación ("Plan (MEI … ) $X"). */
+    async precioComparador(plan: PlanAP): Promise<number> {
+        const header = this.comparadorModal
+            .locator("th.cotable__column")
+            .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(plan)}\\b`) })
+            .first();
+        await expect(header).toBeVisible();
+        const text = (await header.innerText()).replace(/\([^)]*\)/g, "");
+        const match = text.match(/\$\s?([\d.]+)/);
+        return match ? Number(match[1].replace(/\./g, "")) : 0;
+    }
+
     /** Aviso "Se cotizará solo ocasión de trabajo — AP Integro no admite: …". */
     get avisoIntegroNoDisponible(): Locator {
         return this.page.getByText("Se cotizará solo ocasión de trabajo");
@@ -766,7 +832,7 @@ export default class CotizarAPIAPage {
             await expect(nosisInput).toBeVisible({ timeout: 5000 });
         }).toPass({ timeout: FIELD_TIMEOUT });
         await nosisInput.fill(dniCuit);
-        await this.emisionCliente.buscarBtn.click();
+        await this.emisionCliente.buscarEnNosis();
         const cuit = this.page.locator(
             `[id="dependant_clientes.${index}.cuit"], [id="number_clientes.${index}.razonSocialCuit"]`,
         );
@@ -909,11 +975,12 @@ export default class CotizarAPIAPage {
         ).toBeVisible({ timeout: EMIT_TIMEOUT });
     }
 
-    async assertEmisionExitosa(): Promise<void> {
+    async assertEmisionExitosa(): Promise<string> {
         await expect(this.errorCertificacionCliente, "Sancor rechazó la certificación del cliente").not.toBeVisible();
         await expect(this.emisionFinal.errorEmision).not.toBeVisible();
         await expect(this.emisionExitosaHeading).toBeVisible();
-        await reportarNumeroEmision(this.numeroPolizaValue);
+        const numero = await reportarNumeroEmision(this.numeroPolizaValue);
         await expect(this.anyDocumentoDescargarBtn.first()).toBeEnabled();
+        return numero;
     }
 }

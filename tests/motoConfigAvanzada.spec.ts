@@ -209,8 +209,8 @@ test.describe("Moto - Config avanzada (pairwise + emitir) @configAvanzada", () =
     // Reintento: fallas intermitentes de aseguradora (ej. Rivadavia adjuntar foto 503).
     test.describe.configure({ retries: 1 });
 
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     for (const [compania, nombrePlan] of Object.entries(PLAN_POR_COMPANIA)) {

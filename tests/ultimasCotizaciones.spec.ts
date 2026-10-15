@@ -27,8 +27,8 @@ import {
  */
 
 test.describe("Últimas cotizaciones - Moto RECOTIZAR/EMITIR @regression", () => {
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     for (const company of MOTO_COMPANIES) {

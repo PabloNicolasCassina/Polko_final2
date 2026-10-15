@@ -25,8 +25,8 @@ async function applyUserMock(page: import("@playwright/test").Page): Promise<voi
 }
 
 test.describe("Auto - Roles de cliente por compañía @regression", () => {
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     test("matriz de cobertura: roles comprometidos por compañia estan en algun caso", () => {

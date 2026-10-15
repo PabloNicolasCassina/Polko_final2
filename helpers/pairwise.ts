@@ -131,7 +131,7 @@ export function formatPairwiseRow(row: PairwiseRow): string {
         .join(", ");
 }
 
-/** Fila pairwise como parámetros de reporte (Allure/Qase solo aceptan strings). */
+/** Fila pairwise como parámetros de reporte (Allure solo acepta strings). */
 export function pairwiseRowToParams(row: PairwiseRow): Record<string, string> {
     return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, String(v)]));
 }

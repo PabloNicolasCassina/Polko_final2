@@ -38,10 +38,6 @@ POLKO_AUTH_PASSWORD=
 SANCOR_PORTAL_USER=
 SANCOR_PORTAL_PASS=
 
-# Reporte a Qase (si no hay token, queda apagado)
-QASE_TESTOPS_API_TOKEN=
-QASE_TESTOPS_PROJECT=POLKOFINAL
-
 # Reporte a Jira (npm run jira:report)
 JIRA_BASE_URL=
 JIRA_EMAIL=

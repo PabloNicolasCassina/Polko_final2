@@ -127,8 +127,8 @@ test.describe("AP - Config avanzada (pairwise + emitir Personalizada) @configAva
     // Reintento: fallas intermitentes de Sancor pre (alta de matriz / emisión).
     test.describe.configure({ retries: 1 });
 
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     const rows = generatePairwise(buildFactors()).map(normalizeRow);

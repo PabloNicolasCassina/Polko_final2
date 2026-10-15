@@ -1,22 +1,32 @@
-import { expect, type Locator, type Page, type Response } from "@playwright/test";
-import { isCompactViewport } from "../helpers/viewport";
+import { expect, type Download, type Locator, type Page, type Response } from "@playwright/test";
+import { isCompactViewport, isNarrowViewport } from "../helpers/viewport";
+import { verificarSinDesbordeHorizontal } from "../helpers/mobileLayout";
 
 export const TAB_EMITIDAS_POLKO = "Pólizas emitidas en Polko";
-export const TAB_POLIZAS_PAGAS = "Pólizas pagas";
-export type MiCarteraTab = typeof TAB_EMITIDAS_POLKO | typeof TAB_POLIZAS_PAGAS;
+export const TAB_CARTERA_COMPLETA = "Cartera completa";
+export type MiCarteraTab = typeof TAB_EMITIDAS_POLKO | typeof TAB_CARTERA_COMPLETA;
 
-export const ORIGEN_POLKO = "Pólizas Emitidas por Polko";
-export const ORIGEN_REPORTE_COBRANZA = "Información Según Reporte de Cobranza";
-export const ALERTA_MORA = "Posible alerta de mora";
+export const ORIGEN_LABEL = "Origen";
+export const ORIGEN_POLKO = "Emitidas en Polko";
+export const ORIGEN_REPORTE_COBRANZA = "Reporte de cobranza";
 
+export const VER_ARCHIVADAS = "Ver archivadas";
+export const VER_ACTIVAS = "Ver activas";
+export const SIN_ARCHIVADAS = "No tenés pólizas archivadas.";
+
+const BACK_LABEL_CORTO = "Volver";
+const RECOTIZAR_LABEL = "Recotizar en Polko";
+const RECOTIZAR_LABEL_CORTO = "Recotizar";
 const DOCUMENTACION_ENDPOINT = "/my-client-base/getDocumentacion";
+const DESCARGA_DOCUMENTO_PATH = /\/my-client-base\/policies\/[^/]+\/documents\//;
 
 /**
- * Page Object de Mi Cartera (`/u/micartera`), rediseño POL-3124.
+ * Page Object de Mi Cartera (`/u/micartera`), rediseño POL-3124 + responsive POL-3180.
  * Dos pestañas sobre el mismo listado (`MisEmisiones`):
- * - "Pólizas emitidas en Polko": búsqueda server-side (debounce 1s), compañía/producto/estado client-side.
- * - "Pólizas pagas": búsqueda, compañía, producto, fuente del dato y alerta de mora server-side y paginado;
- *   el contador solo aparece con algún filtro activo.
+ * - "Pólizas emitidas en Polko": búsqueda server-side (debounce 1s), compañía/producto/estado client-side;
+ *   el contador es solo el número.
+ * - "Cartera completa": búsqueda, compañía, producto, fuente del dato y archivadas server-side y paginado;
+ *   el contador ("N resultados") solo aparece con algún filtro activo.
  */
 export default class MiCarteraPage {
     readonly page: Page;
@@ -35,7 +45,8 @@ export default class MiCarteraPage {
     readonly productSelect: Locator;
     readonly statusSelect: Locator;
     readonly originSelect: Locator;
-    readonly moraButton: Locator;
+    readonly viewArchivedButton: Locator;
+    readonly archivePills: Locator;
     readonly exportButton: Locator;
     readonly cards: Locator;
     readonly skeletons: Locator;
@@ -49,6 +60,8 @@ export default class MiCarteraPage {
 
     readonly detail: Locator;
     readonly detailBackButton: Locator;
+    /** Label visible del botón volver: el completo o "Volver" (<= 768px). */
+    readonly detailBackLabel: Locator;
     readonly detailTitle: Locator;
     readonly detailRecotizarLink: Locator;
     readonly detailClientDocument: Locator;
@@ -63,6 +76,9 @@ export default class MiCarteraPage {
     readonly detailDocumentsTitle: Locator;
     readonly detailDocumentButtons: Locator;
     readonly detailDocumentLabels: Locator;
+
+    /** Búsqueda con la que "Cartera completa" pidió por última vez (la reutiliza "Pólizas emitidas en Polko"). */
+    private busquedaCartera: string | null = null;
 
     constructor(page: Page) {
         this.page = page;
@@ -81,7 +97,8 @@ export default class MiCarteraPage {
         this.productSelect = this.filters.locator('input[placeholder="Producto"]');
         this.statusSelect = this.filters.locator('input[placeholder="Estado"]');
         this.originSelect = this.filters.locator('input[placeholder="Fuente del dato"]');
-        this.moraButton = this.filters.locator(".MiCarteraEmissions__statusButton");
+        this.viewArchivedButton = page.locator(".MiCarteraViewArchived__trigger");
+        this.archivePills = page.locator(".MiCarteraEmissionCard .MiCarteraArchivePill");
         this.exportButton = page.locator(".MiCarteraExportPopover__trigger");
         this.cards = page.locator(".MiCarteraEmissionCard");
         this.skeletons = page.locator(".EmissionCardSkeleton");
@@ -95,6 +112,7 @@ export default class MiCarteraPage {
 
         this.detail = page.locator(".MiCarteraClientDetail");
         this.detailBackButton = this.detail.locator(".MiCarteraClientDetail__backButton");
+        this.detailBackLabel = this.detailBackButton.filter({ visible: true });
         this.detailTitle = this.detail.locator(".MiCarteraClientDetail__title");
         this.detailRecotizarLink = this.detail.locator(".MiCarteraRecotizar");
         this.detailClientDocument = this.detail.locator(".MiCarteraClientDetail__document");
@@ -109,6 +127,51 @@ export default class MiCarteraPage {
         this.detailDocumentsTitle = this.detail.locator(".MiCarteraPolicyCard__documentsTitle");
         this.detailDocumentButtons = this.detail.locator(".MiCarteraPolicyCard__documentButton");
         this.detailDocumentLabels = this.detail.locator(".MiCarteraPolicyCard__documentLabel");
+    }
+
+    async goto(): Promise<void> {
+        await this.page.goto("/u/micartera", { waitUntil: "domcontentloaded", timeout: 120000 });
+        await this.waitForListaCargada();
+    }
+
+    /**
+     * Busca en "Pólizas emitidas en Polko" una póliza recién emitida (por patente o número de póliza)
+     * hasta que aparezca una única card; recarga entre intentos por si la emisión todavía no figura.
+     */
+    async buscarPolizaEmitida(texto: string, timeout = 120000): Promise<Locator> {
+        await expect(async () => {
+            await this.page.reload({ waitUntil: "domcontentloaded" });
+            await this.waitForListaCargada();
+            await this.irATab(TAB_EMITIDAS_POLKO);
+            await this.buscar(texto);
+            await expect(this.cards).toHaveCount(1, { timeout: 5000 });
+        }).toPass({ timeout, intervals: [5000, 10000, 15000] });
+        return this.cards.first();
+    }
+
+    /** Botón de documento del detalle cuyo label matchea (ej. /^p[oó]liza/i). */
+    detailDocumentButton(label: string | RegExp): Locator {
+        return this.detailDocumentButtons.filter({
+            has: this.page.locator(".MiCarteraPolicyCard__documentLabel", { hasText: label }),
+        });
+    }
+
+    /** Click en un documento del detalle: falla con el detalle del BE si la descarga no responde OK. */
+    async descargarDocumento(boton: Locator): Promise<Download> {
+        const responsePromise = this.page.waitForResponse(
+            (response) =>
+                response.request().method() === "POST" && DESCARGA_DOCUMENTO_PATH.test(new URL(response.url()).pathname),
+            { timeout: 180000 },
+        );
+        const downloadPromise = this.page.waitForEvent("download", { timeout: 180000 });
+        downloadPromise.catch(() => undefined);
+        await boton.click();
+        const response = await responsePromise;
+        if (!response.ok()) {
+            const detalle = await response.text().catch(() => "");
+            throw new Error(`La descarga del documento respondió ${response.status()}: ${detalle}`);
+        }
+        return downloadPromise;
     }
 
     tab(name: MiCarteraTab): Locator {
@@ -141,42 +204,67 @@ export default class MiCarteraPage {
     }
 
     /** Respuesta del BE de cartera cuyos query params cumplen `match`. */
-    waitForDocumentacion(match: (params: URLSearchParams) => boolean = () => true): Promise<Response> {
+    waitForDocumentacion(match: (params: URLSearchParams) => boolean = () => true, timeout = 120000): Promise<Response> {
         return this.page.waitForResponse(
             (response) => {
                 if (!response.url().includes(DOCUMENTACION_ENDPOINT)) return false;
                 return match(new URL(response.url()).searchParams);
             },
-            { timeout: 120000 },
+            { timeout },
         );
     }
 
     async irATab(name: MiCarteraTab): Promise<void> {
         const tab = this.tab(name);
-        if ((await tab.getAttribute("aria-selected")) === "true") {
+        if (await this.tabSeleccionada(name)) {
             await this.abrirFiltrosSiMobile();
             await this.waitForListado();
             return;
         }
-        const response = this.waitForDocumentacion();
+        const search = (await this.searchInput.inputValue()).trim();
+        const reutilizaCache = name === TAB_EMITIDAS_POLKO && this.busquedaCartera === search;
+        const response = reutilizaCache ? null : this.waitForDocumentacion();
         await tab.click();
         await expect(tab).toHaveAttribute("aria-selected", "true");
-        expect((await response).ok(), "getDocumentacion debería responder OK al cambiar de pestaña").toBe(true);
+        if (response) {
+            expect((await response).ok(), "getDocumentacion debería responder OK al cambiar de pestaña").toBe(true);
+        }
+        if (name === TAB_CARTERA_COMPLETA) this.busquedaCartera = search;
         await expect(this.listTitle).toHaveText(name);
         await this.abrirFiltrosSiMobile();
         await this.waitForListado();
     }
 
+    /** "Pólizas emitidas en Polko" muestra solo el número; "Cartera completa", "N resultados". */
     async getResultadosCount(): Promise<number> {
         const text = (await this.counter.textContent()) ?? "";
-        const match = text.match(/(\d+)\s+resultados?/i);
+        const match = text.match(/^\s*(\d+)/);
         return match ? Number(match[1]) : 0;
     }
 
-    /** La búsqueda va al BE con debounce: espera la respuesta con el `search` pedido. */
+    /** Label que debería verse en el botón volver del detalle según el ancho. */
+    backLabelVisible(labelCompleto: string): string {
+        return isNarrowViewport(this.page) ? BACK_LABEL_CORTO : labelCompleto;
+    }
+
+    /** Label del link de recotizar: "Recotizar" (<= 768px) o "Recotizar en Polko". */
+    recotizarLabelVisible(): string {
+        return isNarrowViewport(this.page) ? RECOTIZAR_LABEL_CORTO : RECOTIZAR_LABEL;
+    }
+
+    /**
+     * La búsqueda va al BE con debounce. "Pólizas emitidas en Polko" puede reutilizar el
+     * resultado ya traído por "Cartera completa" sin volver a pedir: en ese caso no hay response.
+     */
     async buscar(texto: string): Promise<void> {
         const target = texto.trim();
         if ((await this.searchInput.inputValue()).trim() === target) {
+            await this.waitForListado();
+            return;
+        }
+        const enCartera = await this.tabSeleccionada(TAB_CARTERA_COMPLETA);
+        if (!enCartera && this.busquedaCartera === target) {
+            await this.searchInput.fill(texto);
             await this.waitForListado();
             return;
         }
@@ -185,7 +273,12 @@ export default class MiCarteraPage {
         );
         await this.searchInput.fill(texto);
         expect((await response).ok(), `getDocumentacion debería responder OK al buscar "${texto}"`).toBe(true);
+        if (enCartera) this.busquedaCartera = target;
         await this.waitForListado();
+    }
+
+    private async tabSeleccionada(name: MiCarteraTab): Promise<boolean> {
+        return (await this.tab(name).getAttribute("aria-selected")) === "true";
     }
 
     async limpiarBusqueda(): Promise<void> {
@@ -237,34 +330,63 @@ export default class MiCarteraPage {
     }
 
     /**
-     * Selección de un filtro server-side ("Pólizas pagas"): espera la respuesta cuyo
+     * Selección de un filtro server-side ("Cartera completa"): espera la respuesta cuyo
      * query param `param` viene informado.
      */
     async seleccionarOpcionServer(selectInput: Locator, optionLabel: string, param: string): Promise<void> {
         const response = this.waitForDocumentacion((params) => params.has(param));
-        await this.seleccionarOpcion(selectInput, optionLabel);
+        await this.abrirFiltrosSiMobile();
+        await selectInput.click();
+        await this.page.getByRole("option", { name: optionLabel, exact: true }).click();
+        // Mientras carga, MisEmisiones reemplaza filtros y listado por skeletons: el select no existe hasta la respuesta.
         expect((await response).ok(), `getDocumentacion debería responder OK filtrando ${param}`).toBe(true);
         await this.waitForListado();
+        await this.abrirFiltrosSiMobile();
+        await expect(selectInput).toHaveValue(optionLabel);
     }
 
     async limpiarSelectServer(selectInput: Locator, param: string): Promise<void> {
         await this.abrirFiltrosSiMobile();
         if (!(await selectInput.inputValue())) return;
         const response = this.waitForDocumentacion((params) => !params.has(param));
-        await this.limpiarSelect(selectInput);
+        await this.selectWrapper(selectInput).locator("button.mantine-CloseButton-root").click();
         await response;
+        await this.waitForListado();
+        await this.abrirFiltrosSiMobile();
+        await expect(selectInput).toHaveValue("");
+    }
+
+    /** "Cartera completa": alterna entre pólizas activas y archivadas (`archived` server-side). */
+    async toggleVerArchivadas(): Promise<void> {
+        const archivadas = (await this.viewArchivedButton.getAttribute("aria-pressed")) !== "true";
+        const response = this.waitForDocumentacion((params) => params.get("archived") === String(archivadas));
+        await this.viewArchivedButton.click();
+        expect((await response).ok(), "getDocumentacion debería responder OK al alternar archivadas").toBe(true);
+        await expect(this.viewArchivedButton).toHaveAttribute("aria-pressed", String(archivadas));
+        await expect(this.viewArchivedButton).toHaveText(archivadas ? VER_ACTIVAS : VER_ARCHIVADAS);
         await this.waitForListado();
     }
 
-    async toggleAlertaMora(): Promise<void> {
-        const activar = (await this.moraButton.getAttribute("aria-pressed")) !== "true";
-        const response = this.waitForDocumentacion((params) =>
-            activar ? params.get("payment_status") === "mora" : !params.has("payment_status"),
-        );
-        await this.moraButton.click();
-        expect((await response).ok(), "getDocumentacion debería responder OK con el filtro de mora").toBe(true);
-        await expect(this.moraButton).toHaveAttribute("aria-pressed", String(activar));
-        await this.waitForListado();
+    /**
+     * Mobile: solo se ven los filtros mobile (no los desktop "aplastados") y nada del listado
+     * desborda horizontalmente. No-op en desktop. Asserts soft.
+     */
+    async verificarLayoutMobile(): Promise<void> {
+        if (!isCompactViewport(this.page)) return;
+        await expect
+            .soft(this.desktopFilters, "Los filtros desktop no deberían verse en mobile (se duplican con los mobile)")
+            .toBeHidden();
+        await expect.soft(this.mobileFilters, "Los filtros mobile deberían verse").toBeVisible();
+        await verificarSinDesbordeHorizontal(this.page, {
+            encabezado: this.title,
+            "aviso de datos de pago": this.paymentNotice,
+            "filtros mobile": this.mobileFilters,
+            "primera card del listado": this.cards,
+        });
+    }
+
+    async verificarLayoutMobileDetalle(): Promise<void> {
+        await verificarSinDesbordeHorizontal(this.page, { "detalle de póliza": this.detail });
     }
 
     async abrirDetalle(index = 0): Promise<string> {
@@ -319,16 +441,8 @@ export default class MiCarteraPage {
         return this.cards.locator(".MiCarteraEmissionCard__status");
     }
 
-    cardsConAlertaMora(): Locator {
-        return this.page.locator(".MiCarteraEmissionCard--alertListon");
-    }
-
     cardsOrigenPolko(): Locator {
         return this.page.locator(".MiCarteraEmissionCard--polkoOrigin");
-    }
-
-    alertaMoraLabels(): Locator {
-        return this.cards.locator(".MiCarteraMoraListon__label");
     }
 
     async getVisibleTitles(): Promise<string[]> {
@@ -350,7 +464,7 @@ export default class MiCarteraPage {
 
     /**
      * Extrae el producto del detalle. "Pólizas emitidas en Polko" trae fecha al final
-     * ("Compañía - Producto - dd/mm/aaaa"); "Pólizas pagas" no ("Compañía - Producto").
+     * ("Compañía - Producto - dd/mm/aaaa"); "Cartera completa" puede no traerla ("Compañía - Producto").
      */
     static productFromDetail(detail: string): string {
         const parts = detail.split(" - ").map((p) => p.trim());

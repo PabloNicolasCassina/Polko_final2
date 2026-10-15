@@ -89,8 +89,8 @@ async function preciosPersonalizada(cotizarAP: CotizarAPIAPage, descuento: numbe
 test.describe("AP - Precios: descuento y vigencia @regression", () => {
     test.describe.configure({ retries: 1 });
 
-    test.afterEach(async ({}, testInfo) => {
-        await attachBackendLogsOnFailure(testInfo);
+    test.afterEach(async ({ page }, testInfo) => {
+        await attachBackendLogsOnFailure(testInfo, page);
     });
 
     test("Descuento 30% baja la prima Personalizada y viaja en cotización y alta de matriz", async ({ page }) => {
