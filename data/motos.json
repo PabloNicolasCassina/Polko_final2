@@ -34,7 +34,10 @@
             "tipoPersona": "Física",
             "sitImpositiva": "Consumidor final",
             "multi": false,
-            "descuento": true
+            "descuento": true,
+            "planPorCompania": {
+                "Rivadavia": "Base"
+            }
         },
         {
             "marca": "DUCATI",
@@ -46,7 +49,10 @@
             "tipoPersona": "Física",
             "sitImpositiva": "Consumidor final",
             "multi": false,
-            "descuento": true
+            "descuento": true,
+            "planPorCompania": {
+                "Rivadavia": "Base"
+            }
         }
     ]
 }

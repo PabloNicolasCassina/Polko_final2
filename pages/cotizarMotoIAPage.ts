@@ -177,6 +177,17 @@ export const CONFIG_AVANZADA_DESCUENTOS_MOTO: Record<string, number[]> = {
 };
 
 /**
+ * Formas de pago del paso "Datos de la póliza" de la emisión para aseguradoras que
+ * no la exponen en config avanzada (entra al pairwise como factor `formaPagoEmision`).
+ * Sancor moto no ofrece Efectivo.
+ */
+export const FORMAS_PAGO_EMISION_MOTO: Record<string, string[]> = {
+    Sancor: ["Tarjeta de crédito", "Débito por CBU"],
+    Rivadavia: ["Tarjeta de crédito", "Débito por CBU", "Efectivo"],
+    RUS: ["Tarjeta de crédito", "Débito por CBU", "Efectivo"],
+};
+
+/**
  * @deprecated Preferí `CONFIG_AVANZADA_OPTIONS_BY_COMPANY_MOTO`.
  * Se mantiene como fallback vacío de ejes compartidos.
  */
@@ -455,14 +466,34 @@ export default class CotizarMotoIAPage {
     }
 
     /** Asserts de éxito de emisión (happy path / regresión). */
-    async assertEmisionExitosa(): Promise<string> {
+    async assertEmisionExitosa(): Promise<{ tipo: string; numero: string }> {
         await expect(this.emisionExitosaHeading.or(this.emisionFinal.errorEmision)).toBeVisible({
             timeout: QUOTE_TIMEOUT * 2,
         });
         await expect(this.emisionFinal.errorEmision).not.toBeVisible();
-        const numero = await reportarNumeroEmision(this.numeroPolizaValue);
+        const emision = await this.assertNumeroEmision();
         await expect(this.anyDocumentoDescargarBtn.first()).toBeEnabled();
-        return numero;
+        return emision;
+    }
+
+    /**
+     * Assert del número de la aseguradora en éxito: póliza → propuesta → trámite → solicitud
+     * (ATM muestra "Solicitud GLM"). "Número de operación" es el id de Polko: no cuenta.
+     */
+    async assertNumeroEmision(): Promise<{ tipo: string; numero: string }> {
+        const candidatos: Array<[string, RegExp]> = [
+            ["Número de póliza", /Número de p[oó]liza/i],
+            ["Número de propuesta", /Número de propuesta/i],
+            ["Número de trámite", /Número de tr[aá]mite/i],
+            ["Solicitud", /^Solicitud\b/i],
+        ];
+        for (const [tipo, label] of candidatos) {
+            const valor = this.successRowValueByLabel(label);
+            if ((await valor.count()) > 0) {
+                return { tipo, numero: await reportarNumeroEmision(valor, tipo) };
+            }
+        }
+        return { tipo: "Número de póliza", numero: await reportarNumeroEmision(this.numeroPolizaValue) };
     }
 
     /**
@@ -729,9 +760,13 @@ export default class CotizarMotoIAPage {
      * Rivadavia usa "Número de Póliza"; RUS usa "Número de poliza" (sin tilde).
      */
     get numeroPolizaValue(): Locator {
+        return this.successRowValueByLabel(/Número de p[oó]liza/i);
+    }
+
+    private successRowValueByLabel(label: RegExp): Locator {
         return this.page
             .locator(".EmissionSuccess__row")
-            .filter({ has: this.page.getByText(/Número de p[oó]liza/i) })
+            .filter({ has: this.page.getByText(label) })
             .locator(".EmissionSuccess__rowValue");
     }
 
@@ -773,6 +808,8 @@ export default class CotizarMotoIAPage {
         code: string,
         opts: {
             formaPago?: string;
+            /** Falla si `formaPago` no está entre las opciones en vez de tomar la primera. */
+            formaPagoEstricta?: boolean;
             dniCuit?: string;
             localidad?: string;
             mail?: string;
@@ -797,7 +834,16 @@ export default class CotizarMotoIAPage {
         // maneja el caso deshabilitado) y luego se completa el campo
         // complementario que corresponda a lo que haya quedado seleccionado.
         await expect(this.formaPagoSelect).toBeVisible({ timeout: FIELD_TIMEOUT });
-        if (opts.formaPago && (await this.formaPagoSelect.isEnabled())) {
+        const pagoHabilitado = await this.formaPagoSelect.isEnabled();
+        if (opts.formaPago && opts.formaPagoEstricta && !pagoHabilitado) {
+            const bloqueado = (await this.formaPagoSelect.inputValue().catch(() => "")).trim();
+            if (bloqueado && bloqueado.toLowerCase() !== opts.formaPago.toLowerCase()) {
+                throw new Error(
+                    `Forma de pago esperada "${opts.formaPago}", pero Datos de la póliza viene bloqueada con "${bloqueado}".`,
+                );
+            }
+        }
+        if (opts.formaPago && pagoHabilitado) {
             // No usar EmisionFormaPago.selectPaymentOption() a ciegas acá: si la
             // opción pedida no existe para esta aseguradora (confirmado en vivo:
             // Sancor solo ofrece Tarjeta de crédito / Débito por CBU, sin
@@ -811,9 +857,19 @@ export default class CotizarMotoIAPage {
                 .first()
                 .waitFor({ state: "visible", timeout: FIELD_TIMEOUT })
                 .catch(() => {});
-            const option = this.page.getByRole("option", { name: opts.formaPago, exact: true });
+            const formaPagoRe = new RegExp(
+                `^\\s*${opts.formaPago.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`,
+                "i",
+            );
+            const option = this.page.getByRole("option", { name: formaPagoRe });
             if ((await option.count()) > 0) {
-                await option.click();
+                await option.first().click();
+            } else if (opts.formaPagoEstricta) {
+                const disponibles = await this.page.getByRole("option").allInnerTexts();
+                throw new Error(
+                    `Forma de pago "${opts.formaPago}" no disponible en Datos de la póliza. ` +
+                        `Opciones: ${disponibles.map((o) => o.trim()).join(" | ")}`,
+                );
             } else {
                 // Efectivo no existe en Triunfo/Sancor (y a veces otras): Escape
                 // deja el combo vacío → "Debe seleccionar una opción" y no avanza

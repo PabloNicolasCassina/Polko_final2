@@ -40,14 +40,25 @@ type VehiculoBase = {
     modelo: string;
     version: string;
     c_postal: string;
+    ceroKm?: boolean;
+    /** Pisa el plan de `PLAN_POR_COMPANIA` cuando la compañía no ofrece ese plan para el vehículo. */
+    planPorCompania?: Record<string, string>;
 };
 
-/** Un vehículo por combinación única marca/año/modelo/versión de data/autos.json. */
+/** Un vehículo por combinación única marca/año/modelo/versión/0km de data/autos.json. */
 const VEHICULOS: VehiculoBase[] = Array.from(
     new Map(
         data.autos.map((a: VehiculoBase) => [
-            `${a.marca}|${a.año}|${a.modelo}|${a.version}`,
-            { marca: a.marca, año: a.año, modelo: a.modelo, version: a.version, c_postal: a.c_postal },
+            `${a.marca}|${a.año}|${a.modelo}|${a.version}|${a.ceroKm === true}`,
+            {
+                marca: a.marca,
+                año: a.año,
+                modelo: a.modelo,
+                version: a.version,
+                c_postal: a.c_postal,
+                ceroKm: a.ceroKm === true,
+                planPorCompania: a.planPorCompania,
+            },
         ]),
     ).values(),
 );
@@ -75,14 +86,21 @@ type VehiculoCotizar = VehiculoBase & {
 function registerHappyPathSuite(
     suiteTitle: string,
     vehiculo: VehiculoCotizar,
-    emitOpts: { dniCuit: string; localidad?: string; mail?: string; telefono?: string },
+    emitOpts: {
+        dniCuit: string;
+        localidad?: string;
+        mail?: string;
+        telefono?: string;
+        completarRolTab?: { rol: string; dniCuit: string };
+    },
 ): void {
     test.describe(suiteTitle, () => {
         test.afterEach(async ({ page }, testInfo) => {
             await attachBackendLogsOnFailure(testInfo, page);
         });
 
-        for (const [compania, nombrePlan] of Object.entries(PLAN_POR_COMPANIA)) {
+        const planes = { ...PLAN_POR_COMPANIA, ...vehiculo.planPorCompania };
+        for (const [compania, nombrePlan] of Object.entries(planes)) {
             const codigo = PLAN_CODES_AUTO[compania][nombrePlan];
 
             test(`${compania}: cotizar y emitir "${nombrePlan}" (${codigo})`, async ({ page }, testInfo) => {
@@ -201,7 +219,7 @@ function registerHappyPathSuite(
 
 test.describe("Auto - Happy path por aseguradora @regression", () => {
     for (const vehiculo of VEHICULOS) {
-        test.describe(`${vehiculo.marca} ${vehiculo.modelo} ${vehiculo.año}`, () => {
+        test.describe(`${vehiculo.marca} ${vehiculo.modelo} ${vehiculo.año}${vehiculo.ceroKm ? " 0km" : ""}`, () => {
             registerHappyPathSuite("Física / Consumidor final", vehiculo, {
                 dniCuit: CUIT_DEFAULT,
             });
@@ -212,6 +230,7 @@ test.describe("Auto - Happy path por aseguradora @regression", () => {
                 {
                     dniCuit: CUIT_JURIDICA,
                     localidad: LOCALIDAD_CORDOBA,
+                    completarRolTab: { rol: "Titular de sociedad", dniCuit: CUIT_DEFAULT },
                 },
             );
 

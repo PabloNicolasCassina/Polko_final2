@@ -5,6 +5,7 @@ import { reportarNumeroEmision } from "../helpers/reportePoliza";
 import { mockUserDataString } from "../helpers/mockUser";
 import { documentarCaso } from "../helpers/documentarCaso";
 import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
+import data from "../data/motos.json";
 
 /**
  * Happy path E2E de motovehículo con `mocks/mockUserDataATM.json` (habilita
@@ -13,6 +14,8 @@ import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
  * (que solo corre Rivadavia), esto cubre que las 5 integraciones cotizan Y
  * emiten de punta a punta — corre más seguido que la matrix de config
  * avanzada, pero no en cada PR (pensado para nightly/pre-merge a main).
+ *
+ * Se repite por cada moto única (marca/año/versión/0km) de data/motos.json.
  *
  * Variantes de titular (misma data que autos.json):
  *   - Física / Consumidor final (default, CUIT 27381618426)
@@ -33,21 +36,32 @@ import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
  *   npx playwright test tests/motoHappyPath.spec.ts --project=mobile
  */
 
-const VEHICULO_BASE = { marca: "BENELLI", año: "2022", version: "LEONCINO 250", c_postal: "5000" };
-
-const VEHICULO = { ...VEHICULO_BASE };
-
-const VEHICULO_JURIDICA = {
-    ...VEHICULO_BASE,
-    tipoPersona: "Jurídica",
-    sitImpositiva: "Responsable inscripto",
+type MotoBase = {
+    marca: string;
+    año: string;
+    version: string;
+    c_postal: string;
+    esCeroKm?: boolean;
+    /** Pisa el plan de `PLAN_POR_COMPANIA` cuando la compañía no ofrece ese plan para la moto. */
+    planPorCompania?: Record<string, string>;
 };
 
-const VEHICULO_FISICA_RI = {
-    ...VEHICULO_BASE,
-    tipoPersona: "Física",
-    sitImpositiva: "Responsable inscripto",
-};
+/** Una moto por combinación única marca/año/versión/0km de data/motos.json. */
+const MOTOS: MotoBase[] = Array.from(
+    new Map(
+        data.motos.map((m: MotoBase) => [
+            `${m.marca}|${m.año}|${m.version}|${m.esCeroKm === true}`,
+            {
+                marca: m.marca,
+                año: m.año,
+                version: m.version,
+                c_postal: m.c_postal,
+                esCeroKm: m.esCeroKm === true,
+                planPorCompania: m.planPorCompania,
+            },
+        ]),
+    ).values(),
+);
 
 const CUIT_DEFAULT = "27381618426";
 const CUIT_JURIDICA = "30711392404";
@@ -71,7 +85,7 @@ async function applyUserMock(page: import("@playwright/test").Page): Promise<voi
     });
 }
 
-type VehiculoCotizar = typeof VEHICULO_BASE & {
+type VehiculoCotizar = MotoBase & {
     tipoPersona?: string;
     sitImpositiva?: string;
 };
@@ -86,7 +100,8 @@ function registerHappyPathSuite(
             await attachBackendLogsOnFailure(testInfo, page);
         });
 
-        for (const [compania, nombrePlan] of Object.entries(PLAN_POR_COMPANIA)) {
+        const planes = { ...PLAN_POR_COMPANIA, ...vehiculo.planPorCompania };
+        for (const [compania, nombrePlan] of Object.entries(planes)) {
             const codigo = PLAN_CODES_MOTO[compania][nombrePlan];
 
             test(`${compania}: cotizar y emitir "${nombrePlan}" (${codigo})`, async ({ page }, testInfo) => {
@@ -165,18 +180,30 @@ function registerHappyPathSuite(
 }
 
 test.describe("Moto - Happy path por aseguradora @regression", () => {
-    registerHappyPathSuite("Física / Consumidor final", VEHICULO, {
-        dniCuit: CUIT_DEFAULT,
-    });
+    for (const moto of MOTOS) {
+        test.describe(`${moto.marca} ${moto.version} ${moto.año}${moto.esCeroKm ? " 0km" : ""}`, () => {
+            registerHappyPathSuite("Física / Consumidor final", moto, {
+                dniCuit: CUIT_DEFAULT,
+            });
 
-    registerHappyPathSuite("Jurídica / Responsable inscripto", VEHICULO_JURIDICA, {
-        dniCuit: CUIT_JURIDICA,
-        localidad: LOCALIDAD_CORDOBA,
-    });
+            registerHappyPathSuite(
+                "Jurídica / Responsable inscripto",
+                { ...moto, tipoPersona: "Jurídica", sitImpositiva: "Responsable inscripto" },
+                {
+                    dniCuit: CUIT_JURIDICA,
+                    localidad: LOCALIDAD_CORDOBA,
+                },
+            );
 
-    registerHappyPathSuite("Física / Responsable inscripto", VEHICULO_FISICA_RI, {
-        dniCuit: CUIT_FISICA_RI,
-        mail: "cassinanico@gmail.com",
-        telefono: "3512334798",
-    });
+            registerHappyPathSuite(
+                "Física / Responsable inscripto",
+                { ...moto, tipoPersona: "Física", sitImpositiva: "Responsable inscripto" },
+                {
+                    dniCuit: CUIT_FISICA_RI,
+                    mail: "cassinanico@gmail.com",
+                    telefono: "3512334798",
+                },
+            );
+        });
+    }
 });

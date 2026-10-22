@@ -26,6 +26,13 @@ export default class ArtCotizarLayout {
     readonly verDiferencialesBtn: Locator;
     readonly emitirOfferBtn: Locator;
     readonly agregarBtn: Locator;
+    readonly coberturasDisponiblesText: Locator;
+    readonly clienteHeading: Locator;
+    readonly resumenHeading: Locator;
+    readonly emitirResumenBtn: Locator;
+    readonly emisionSuccessTitle: Locator;
+    readonly irAMisSolicitudesBtn: Locator;
+    readonly emisionErrorText: Locator;
 
     constructor(page: Page) {
         this.page = page;
@@ -52,6 +59,13 @@ export default class ArtCotizarLayout {
         this.verDiferencialesBtn = page.getByRole("button", { name: /Ver diferenciales/i });
         this.emitirOfferBtn = page.getByRole("button", { name: /^Emitir$/i });
         this.agregarBtn = page.getByRole("button", { name: /^Agregar$/i });
+        this.coberturasDisponiblesText = page.getByText(/\d+\s+Coberturas?\s+disponibles?/i);
+        this.clienteHeading = page.getByRole("heading", { name: "Datos del cliente" });
+        this.resumenHeading = page.getByRole("heading", { name: "Revisá y modificá antes de emitir" });
+        this.emitirResumenBtn = page.getByRole("button", { name: /^Emitir$/i });
+        this.emisionSuccessTitle = page.getByText("¡Solicitud enviada!");
+        this.irAMisSolicitudesBtn = page.getByRole("button", { name: "Ir a Mis Solicitudes" });
+        this.emisionErrorText = page.getByText(/Parece que hubo un|Hubo un problema al emitir/i);
     }
 
     async gotoCotizar() {

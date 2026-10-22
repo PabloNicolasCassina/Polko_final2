@@ -8,6 +8,7 @@ import CotizarAutoIAPage, {
     CONFIG_AVANZADA_AJUSTE_BY_FACTURACION_AUTO,
     CONFIG_AVANZADA_PAGO_FACTURACION_CUOTAS_AUTO,
     CONFIG_AVANZADA_DESCUENTOS_AUTO,
+    FORMAS_PAGO_EMISION_AUTO,
     PLAN_CODES_AUTO,
     SANCOR_DESCUENTO_SIN_EXTRA,
 } from "../pages/cotizarAutoIAPage";
@@ -27,6 +28,8 @@ import autosData from "../data/autos.json";
  * Matrix pairwise de "Configuración avanzada" de auto + emisión.
  * Mock: `mocks/mockUserDataATM.json` (Fed + Mercantil).
  * Vehículo: autos genéricos de `data/autos.json` (sin `testType`, Física + CF) como factor pairwise.
+ * Forma de pago: si la compañía no la expone en config avanzada (Sancor, Rivadavia, RUS,
+ * Federación), entra como factor `formaPagoEmision` del paso Póliza (estricto, sin fallback).
  *
  * Dependencias filtradas (no confiar en opciones stale del listbox):
  *   ATM Efectivo → solo Bimestral|Trimestral (no Mensual)
@@ -175,6 +178,11 @@ function factorsForCompany(compania: string): PairwiseFactor[] {
         factors.push({ name: "descuento", values: descuentos });
     }
 
+    const formasPagoEmision = FORMAS_PAGO_EMISION_AUTO[compania];
+    if (!fields.includes("formaDePago") && formasPagoEmision && formasPagoEmision.length >= 2) {
+        factors.push({ name: "formaPagoEmision", values: formasPagoEmision });
+    }
+
     return factors;
 }
 
@@ -208,10 +216,11 @@ function isConfigRowValid(compania: string, row: PairwiseRow): boolean {
     return true;
 }
 
-/** Expande packed dependants → campos reales. Quita `vehiculo`. */
+/** Expande packed dependants → campos reales. Quita `vehiculo` y `formaPagoEmision` (no son config avanzada). */
 function expandConfigRow(row: PairwiseRow): PairwiseRow {
     const out: PairwiseRow = { ...row };
     delete out.vehiculo;
+    delete out.formaPagoEmision;
     const packedPago = out.pago_facturacion_cuotas;
     if (typeof packedPago === "string" && packedPago.split("|").length === 3) {
         const [formaDePago, facturacion, cuotas] = packedPago.split("|");
@@ -231,8 +240,9 @@ function expandConfigRow(row: PairwiseRow): PairwiseRow {
     return out;
 }
 
-function formaPagoEmision(row: PairwiseRow): string {
-    const fromConfig = row.formaDePago;
+function formaPagoEmision(row: PairwiseRow, configValues: PairwiseRow): string {
+    if (typeof row.formaPagoEmision === "string") return row.formaPagoEmision;
+    const fromConfig = configValues.formaDePago;
     if (typeof fromConfig === "string" && fromConfig.length > 0) {
         // En emisión, "Medios electrónicos" no es opción directa: best-effort Efectivo.
         if (/medios electr[oó]nicos/i.test(fromConfig)) return "Efectivo";
@@ -264,7 +274,8 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                     test.setTimeout(360000);
                     const auto = autoFromRow(row);
                     const configValues = expandConfigRow(row);
-                    const formaPago = formaPagoEmision(configValues);
+                    const formaPago = formaPagoEmision(row, configValues);
+                    const formaPagoEstricta = typeof row.formaPagoEmision === "string";
 
                     await documentarCaso({
                         epic: "Auto",
@@ -321,6 +332,7 @@ test.describe("Auto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                     await test.step(`Emitir el plan ${codigoEmitir} con ${formaPago}`, async () => {
                         await cotizarAutoIA.emitirPlan(codigoEmitir, {
                             formaPago,
+                            formaPagoEstricta,
                             skipInspeccion: SKIP_INSPECCION[compania] === true,
                         });
                     });

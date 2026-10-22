@@ -82,8 +82,11 @@ export default class EmisionInspeccionMercantilAndina {
 
     async completarEstadoRiesgo(): Promise<void> {
         // Sin daños que declarar: se continúa directamente a la carga de fotos.
-        await expect(this.botonContinuar).toBeVisible({ timeout: 30000 });
-        await this.botonContinuar.click();
+        // Barbara a veces omite esta pantalla y va directo a "Fotos de la unidad".
+        await expect(this.botonContinuar.or(this.tituloFotosUnidad)).toBeVisible({ timeout: 30000 });
+        if (await this.botonContinuar.isVisible()) {
+            await this.botonContinuar.click();
+        }
     }
 
     async subirFotosUnidad(filepath: string, tieneGnc: boolean = false): Promise<void> {

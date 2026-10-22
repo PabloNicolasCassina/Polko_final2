@@ -13,13 +13,12 @@ const adminBuildDir = path.resolve(process.cwd(), '..', 'admin', 'build');
 /**
  * Script de setup MANUAL para usuario admin (consola de administración).
  *
- * EJECUTAR CON: npx ts-node tests/auth.setup.admin.ts
+ * EJECUTAR CON: npm run auth:admin (buildea admin desde la rama actual con scripts/buildAdmin.sh y después corre este script)
  *
  * Requiere el build de admin apuntando a localhost:3000 (Auth0 solo acepta ese callback) y con
  * REACT_APP_AUTH0_CACHE=localstorage: admin guarda el token en memoria por defecto y Auth0 no
  * permite re-loguear en silencio desde localhost (consent_required), así que sin eso el storageState
- * no alcanza. Con Node 16 (react-scripts 4 no buildea en Node 17+):
- *   cd ../admin && nvm use 16.2.0 && REACT_APP_AUTH0_CACHE=localstorage REACT_APP_URL=http://localhost:3000/ REACT_APP_CALLBACK_URL=http://localhost:3000/callback npm run build
+ * no alcanza. scripts/buildAdmin.sh lo arma así con Node 16 (react-scripts 4 no buildea en Node 17+).
  *
  * No hace falta levantar admin ni bajar frontend_general: el contexto intercepta
  * http://localhost:3000/** y responde con los archivos del build. Las llamadas a los
@@ -57,7 +56,7 @@ async function setupAdminAuth() {
     if (!fs.existsSync(path.join(adminBuildDir, 'index.html'))) {
         console.error(`❌ No se encontró el build de admin en ${adminBuildDir}`);
         console.error('Generalo con:');
-        console.error('  cd ../admin && nvm use 16.2.0 && REACT_APP_AUTH0_CACHE=localstorage REACT_APP_URL=http://localhost:3000/ REACT_APP_CALLBACK_URL=http://localhost:3000/callback npm run build');
+        console.error('  npm run build:admin');
         process.exit(1);
     }
 

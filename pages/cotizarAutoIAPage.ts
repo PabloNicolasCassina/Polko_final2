@@ -227,6 +227,17 @@ export const CONFIG_AVANZADA_DESCUENTOS_AUTO: Record<string, number[]> = {
     Mercantil: [0, 25],
 };
 
+/**
+ * Formas de pago del paso "Póliza" de la emisión para aseguradoras que no la
+ * exponen en config avanzada (entra al pairwise como factor `formaPagoEmision`).
+ */
+export const FORMAS_PAGO_EMISION_AUTO: Record<string, string[]> = {
+    Sancor: ["Tarjeta de crédito", "Débito por CBU", "Efectivo"],
+    Rivadavia: ["Tarjeta de crédito", "Débito por CBU", "Efectivo"],
+    RUS: ["Tarjeta de crédito", "Débito por CBU", "Efectivo"],
+    Federación: ["Tarjeta de crédito", "Débito por CBU", "Efectivo"],
+};
+
 /** Tope de descuento sin "descuento adicional" (Sancor). */
 export const SANCOR_DESCUENTO_SIN_EXTRA = 15;
 
@@ -394,6 +405,8 @@ export function cuitFromDni(dni: string, genero: "M" | "F" = "M"): string {
 
 export type EmitirPlanOpts = {
     formaPago?: string;
+    /** Falla si `formaPago` no está entre las opciones en vez de tomar la primera. */
+    formaPagoEstricta?: boolean;
     dniCuit?: string;
     localidad?: string;
     mail?: string;
@@ -518,7 +531,7 @@ export default class CotizarAutoIAPage {
     /**
      * Completa "Datos del vehículo" + "Datos del titular" y cotiza.
      * userPre precarga persona; por defecto basta el código postal.
-     * Opcional: `tipoPersona` / `sitImpositiva` (jurídica / RI) según autos.json.
+     * Opcional: `ceroKm`, `tipoPersona` / `sitImpositiva` (jurídica / RI) según autos.json.
      */
     async cotizarVehiculo(
         auto: {
@@ -527,6 +540,7 @@ export default class CotizarAutoIAPage {
             modelo: string;
             version: string;
             c_postal: string;
+            ceroKm?: boolean;
             tipoPersona?: string;
             sitImpositiva?: string;
         },
@@ -541,6 +555,10 @@ export default class CotizarAutoIAPage {
         await this.selectVehiculoOption(this.cotizacionVehiculo.añoSelector, auto.año);
         await this.selectVehiculoOption(this.cotizacionVehiculo.modeloSelector, auto.modelo);
         await this.selectVehiculoOption(this.cotizacionVehiculo.versionSelector, auto.version);
+        if (auto.ceroKm) {
+            await this.cotizacionVehiculo.ceroKmSelector.click();
+            await this.buttons.siOptionLocator.click();
+        }
         await this.buttons.siguienteBtn.click();
 
         await expect(this.cotizacionPersona.codPostal).toBeVisible({ timeout: FIELD_TIMEOUT });
@@ -1034,7 +1052,7 @@ export default class CotizarAutoIAPage {
         const dniClienteNuevo = await this.completarModalDniClienteNuevoSiAparece(opts.dniCuit);
         const dniParaNosis = opts.dniCuit ?? dniClienteNuevo ?? "27381618426";
 
-        await this.completarPasoPoliza(opts.formaPago);
+        await this.completarPasoPoliza(opts.formaPago, { estricta: opts.formaPagoEstricta });
 
         await this.completarPasoCliente(dniParaNosis, opts, dniClienteNuevo);
 
@@ -1044,29 +1062,48 @@ export default class CotizarAutoIAPage {
 
     /**
      * Paso "Póliza": forma de pago (preferida o la primera disponible) + CBU/tarjeta si
-     * la forma lo pide, y Siguiente.
+     * la forma lo pide, y Siguiente. Con `estricta`, falla si `formaPago` no está
+     * entre las opciones (o el select viene bloqueado con otra forma).
      */
-    async completarPasoPoliza(formaPago?: string): Promise<void> {
+    async completarPasoPoliza(
+        formaPago?: string,
+        { estricta = false }: { estricta?: boolean } = {},
+    ): Promise<void> {
         await expect(this.formaPagoSelect).toBeVisible({ timeout: QUOTE_TIMEOUT });
-        if (await this.formaPagoSelect.isEnabled()) {
+        const formaPagoRe = formaPago
+            ? new RegExp(`^\\s*${formaPago.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i")
+            : null;
+        const habilitado = await this.formaPagoSelect.isEnabled();
+        if (habilitado) {
             await this.formaPagoSelect.click();
             await this.page
                 .getByRole("option")
                 .first()
                 .waitFor({ state: "visible", timeout: FIELD_TIMEOUT });
 
-            const preferred = formaPago
-                ? this.page.getByRole("option", { name: formaPago, exact: true })
+            const preferred = formaPagoRe
+                ? this.page.getByRole("option", { name: formaPagoRe })
                 : null;
             if (preferred && (await preferred.count()) > 0) {
-                await preferred.click();
+                await preferred.first().click();
+            } else if (estricta && formaPago) {
+                const disponibles = await this.page.getByRole("option").allInnerTexts();
+                throw new Error(
+                    `Forma de pago "${formaPago}" no disponible en el paso Póliza. ` +
+                        `Opciones: ${disponibles.map((o) => o.trim()).join(" | ")}`,
+                );
             } else {
-                // Efectivo no existe en Zurich/Triunfo/Sancor: tomar la primera opción válida.
+                // Efectivo no existe en Zurich/Triunfo: tomar la primera opción válida.
                 await this.page.getByRole("option").first().click();
             }
             await expect(this.formaPagoSelect).not.toHaveValue("", { timeout: FIELD_TIMEOUT });
         }
         const visiblePago = await this.formaPagoSelect.inputValue().catch(() => "");
+        if (estricta && !habilitado && formaPagoRe && visiblePago && !formaPagoRe.test(visiblePago)) {
+            throw new Error(
+                `Forma de pago esperada "${formaPago}", pero el paso Póliza quedó con "${visiblePago}".`,
+            );
+        }
         const { formaDePago } = await this.emisionFormaPago.readPagoFieldValues();
         const formaNorm = (visiblePago || formaDePago || "").toLowerCase();
         if (formaNorm.includes("cbu")) {

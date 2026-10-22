@@ -1,15 +1,14 @@
 import { chromium, devices, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { execSync } from "child_process";
 import * as fs from "fs";
 import path from "path";
 
 /**
  * Consola de admin dentro de los tests, sin levantar su dev server: el build estático se sirve
  * interceptando http://localhost:3000 solo en un navegador propio (frontend_general sigue en el
- * :3000 real para el resto). Requiere, generados a mano:
- *   - Build con token en localStorage (Auth0 no re-loguea en silencio desde localhost):
- *       cd ../admin && nvm use 16.2.0 && REACT_APP_AUTH0_CACHE=localstorage \
- *         REACT_APP_URL=http://localhost:3000/ REACT_APP_CALLBACK_URL=http://localhost:3000/callback npm run build
- *   - Sesión: npx ts-node tests/auth.setup.admin.ts → .auth/userAdmin.json (el token dura ~6 h).
+ * :3000 real para el resto). `npm run auth:admin` genera las dos cosas que necesita:
+ *   - Build de la rama actual con token en localStorage (scripts/buildAdmin.sh; solo build: npm run build:admin).
+ *   - Sesión: .auth/userAdmin.json (el token dura ~6 h).
  */
 export const ADMIN_BUILD_DIR = path.resolve(__dirname, "..", "..", "admin", "build");
 export const ADMIN_AUTH_FILE = path.resolve(__dirname, "..", ".auth", "userAdmin.json");
@@ -44,12 +43,36 @@ function tokenAdminVigente(): { ok: boolean; motivo?: string } {
     }
 }
 
+let avisoRamaBuildMostrado = false;
+
+function avisarSiBuildDeOtraRama(): void {
+    if (avisoRamaBuildMostrado) return;
+    avisoRamaBuildMostrado = true;
+    try {
+        const info = JSON.parse(fs.readFileSync(path.join(ADMIN_BUILD_DIR, "polko-build.json"), "utf-8"));
+        const ramaActual = execSync("git branch --show-current", {
+            cwd: path.dirname(ADMIN_BUILD_DIR),
+            stdio: ["ignore", "pipe", "ignore"],
+        })
+            .toString()
+            .trim();
+        if (info.rama !== ramaActual) {
+            console.warn(
+                `⚠️  El build de admin es de "${info.rama}" (${info.commit}) pero admin está en "${ramaActual}": corré npm run build:admin`,
+            );
+        }
+    } catch {
+        console.warn("⚠️  No se sabe de qué rama es el build de admin: corré npm run build:admin");
+    }
+}
+
 /** Si admin se puede automatizar en esta corrida; si no, `motivo` explica qué falta generar. */
 export function adminDisponible(): { ok: boolean; motivo?: string } {
     if (OPF_ADMIN_DESACTIVADO) return { ok: false, motivo: "OPF_ADMIN=0" };
     if (!fs.existsSync(path.join(ADMIN_BUILD_DIR, "index.html"))) {
         return { ok: false, motivo: `no hay build de admin en ${ADMIN_BUILD_DIR}` };
     }
+    avisarSiBuildDeOtraRama();
     return tokenAdminVigente();
 }
 

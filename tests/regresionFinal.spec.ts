@@ -580,9 +580,9 @@ test.describe("Regresión Moto", () => {
                     ),
                 );
 
-                const { patente, numero } = await test.step("5- Emitir", async () => {
+                const { patente, emision } = await test.step("5- Emitir", async () => {
                     const { patente } = await cotizarMotoIA.emitirPlan(codigo, { formaPago: regConfig.formaPago });
-                    return { patente, numero: await cotizarMotoIA.assertEmisionExitosa() };
+                    return { patente, emision: await cotizarMotoIA.assertEmisionExitosa() };
                 });
 
                 test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
@@ -593,7 +593,7 @@ test.describe("Regresión Moto", () => {
                     await test.step(`7- Validar que el PDF sea la póliza de ${patente} y el precio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
                         await validarPdfPoliza(testInfo, pdfPath, {
                             patente,
-                            numero: { tipo: "Número de póliza", valor: numero },
+                            numero: emision.tipo === "Número de póliza" ? { tipo: emision.tipo, valor: emision.numero } : undefined,
                             premio,
                             cuotas,
                         });

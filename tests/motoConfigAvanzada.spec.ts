@@ -8,6 +8,7 @@ import CotizarMotoIAPage, {
     CONFIG_AVANZADA_AJUSTE_BY_FACTURACION_MOTO,
     CONFIG_AVANZADA_PAGO_FACTURACION_CUOTAS_MOTO,
     CONFIG_AVANZADA_DESCUENTOS_MOTO,
+    FORMAS_PAGO_EMISION_MOTO,
     PLAN_CODES_MOTO,
 } from "../pages/cotizarMotoIAPage";
 import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
@@ -33,6 +34,8 @@ import motosData from "../data/motos.json";
  * RUS: ajuste + descuento 0|15.
  * Triunfo: usoVehiculo + pago×facturación×cuotas + descuento 0|30 (sin ajusteAutomatico).
  * Vehículo: las 4 motos de `data/motos.json` como factor pairwise (no cartesiano).
+ * Forma de pago: si la compañía no la expone en config avanzada (Sancor, Rivadavia, RUS),
+ * entra como factor `formaPagoEmision` de "Datos de la póliza" (estricto, sin fallback).
  *
  * Auth por project (storageState) + mock de usuario por route:
  *   npx playwright test tests/motoConfigAvanzada.spec.ts --project=chromium
@@ -147,6 +150,11 @@ function factorsForCompany(compania: string): PairwiseFactor[] {
         factors.push({ name: "descuento", values: descuentos });
     }
 
+    const formasPagoEmision = FORMAS_PAGO_EMISION_MOTO[compania];
+    if (!fields.includes("formaDePago") && formasPagoEmision && formasPagoEmision.length >= 2) {
+        factors.push({ name: "formaPagoEmision", values: formasPagoEmision });
+    }
+
     return factors;
 }
 
@@ -163,10 +171,11 @@ function isConfigRowValid(compania: string, row: PairwiseRow): boolean {
     return ok.includes(ajuste);
 }
 
-/** Expande packed dependants → campos reales (orden de apply en page). Quita `vehiculo`. */
+/** Expande packed dependants → campos reales (orden de apply en page). Quita `vehiculo` y `formaPagoEmision`. */
 function expandConfigRow(row: PairwiseRow): PairwiseRow {
     const out: PairwiseRow = { ...row };
     delete out.vehiculo;
+    delete out.formaPagoEmision;
     const packedPago = out.pago_facturacion_cuotas;
     if (typeof packedPago === "string" && packedPago.split("|").length === 3) {
         const [formaDePago, facturacion, cuotas] = packedPago.split("|");
@@ -194,9 +203,10 @@ function motoFromRow(row: PairwiseRow): MotoFixture {
     return MOTO_BY_KEY[key];
 }
 
-/** Forma de pago a pedir en emisión: la del combo si vino en la fila; si no, Efectivo (best-effort). */
-function formaPagoEmision(row: PairwiseRow): string {
-    const fromConfig = row.formaDePago;
+/** Forma de pago a pedir en emisión: factor `formaPagoEmision`, o la del combo de config; si no, Efectivo (best-effort). */
+function formaPagoEmision(row: PairwiseRow, configValues: PairwiseRow): string {
+    if (typeof row.formaPagoEmision === "string") return row.formaPagoEmision;
+    const fromConfig = configValues.formaDePago;
     if (typeof fromConfig === "string" && fromConfig.length > 0) {
         // En emisión, "Medios electrónicos" no es opción directa (Triunfo config avanzada).
         if (/medios electr[oó]nicos/i.test(fromConfig)) return "Efectivo";
@@ -227,7 +237,8 @@ test.describe("Moto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                     test.setTimeout(240000);
                     const moto = motoFromRow(row);
                     const configValues = expandConfigRow(row);
-                    const formaPago = formaPagoEmision(configValues);
+                    const formaPago = formaPagoEmision(row, configValues);
+                    const formaPagoEstricta = typeof row.formaPagoEmision === "string";
 
                     await documentarCaso({
                         epic: "Moto",
@@ -281,7 +292,7 @@ test.describe("Moto - Config avanzada (pairwise + emitir) @configAvanzada", () =
                     });
 
                     await test.step(`Emitir el plan ${codigoEmitir} con ${formaPago}`, async () => {
-                        await cotizarMotoIA.emitirPlan(codigoEmitir, { formaPago });
+                        await cotizarMotoIA.emitirPlan(codigoEmitir, { formaPago, formaPagoEstricta });
                     });
 
                     await test.step("Validar emisión exitosa, número de póliza y documentos", async () => {

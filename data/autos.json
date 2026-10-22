@@ -18,7 +18,7 @@
             "marca": "FIAT",
             "año": "2026",
             "modelo": "CRONOS",
-            "version": "CRONOS 1.3 LIKE L/25",
+            "version": "CRONOS L/26 1.3 LIKE",
             "c_postal": "5000",
             "localidad": "CORDOBA",
             "tipoPersona": "Física",
@@ -54,7 +54,10 @@
             "multi": false,
             "descuento": true,
             "ceroKm": false,
-            "cuitDni": "27381618426"
+            "cuitDni": "27381618426",
+            "planPorCompania": {
+                "Rivadavia": "F (RC/IT/RT)"
+            }
         },
         {
             "marca": "RENAULT",

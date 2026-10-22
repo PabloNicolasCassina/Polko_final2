@@ -534,6 +534,11 @@ export default class CotizacionTabla {
     }
 
     public async getValorCoberturaTabla(compania: string): Promise<string | null> {
+        const valorCard = await this.getValorCardPlanEmitir(compania);
+        if (valorCard) {
+            return valorCard;
+        }
+
         const coberturaLocator = await this.getRowLocatorWithFallback(compania);
 
         // Esperar a que el elemento sea visible antes de obtener el texto.
@@ -560,7 +565,8 @@ export default class CotizacionTabla {
 
         // Layout 2: precio embebido en el texto (ej: "...detalles92.773Quitar...")
         // Busca un número en formato precio argentino: dígitos con separador de miles (92.773, 131.399, etc.)
-        const matchPrecio = coberturaText.match(/\b(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)\b/);
+        // Sin \b: entre letra y dígito ("detalles101.953") no hay límite de palabra.
+        const matchPrecio = coberturaText.match(/(?<!\d)(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)(?!\d)/);
         if (matchPrecio?.[1]) {
             console.log("Valor cobertura es: " + matchPrecio[1]);
             return matchPrecio[1];
@@ -568,6 +574,35 @@ export default class CotizacionTabla {
 
         console.error(`No se pudo extraer el valor numérico de: "${valorSucio}"`);
         return null;
+    }
+
+    /**
+     * Precio de la tarjeta `.ctrowAuto` que contiene el botón "Emitir" mapeado para la compañía,
+     * o sea el mismo plan que se emite y se compara. Null si la tabla no usa tarjetas.
+     */
+    private async getValorCardPlanEmitir(compania: string): Promise<string | null> {
+        const emitirBtn = this.companiasMap[compania.toLowerCase()];
+        if (!emitirBtn) {
+            return null;
+        }
+        const precio = this.page
+            .locator('.ctrowAuto')
+            .filter({ has: emitirBtn })
+            .locator('.ctrowAuto__price')
+            .first();
+        const visible = await precio
+            .waitFor({ state: 'visible', timeout: 10000 })
+            .then(() => true)
+            .catch(() => false);
+        if (!visible) {
+            return null;
+        }
+        const match = (await precio.innerText()).match(/[\d.,]*\d/);
+        if (!match) {
+            return null;
+        }
+        console.log(`Valor cobertura (card ${compania}) es: ${match[0]}`);
+        return match[0];
     }
 
     public async getValorCarrito(compania: string): Promise<string | null> {
