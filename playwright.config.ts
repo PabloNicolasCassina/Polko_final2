@@ -9,7 +9,7 @@ dotenv.config({ path: path.join(__dirname, '.env'), quiet: true });
 process.env.OPF_RUN_ID ??= String(Date.now());
 
 /**
- * Configuración optimizada para ejecución paralela con 4 workers en modo headless.
+ * Configuración para ejecución headless con 2 workers locales por defecto.
  *
  * Uso:
  *   npx playwright test tests/regresionFinal.spec.ts --workers=4
@@ -59,6 +59,20 @@ const allureReporter: ReporterDescription = ['allure-playwright', {
 /** Specs de Últimas cotizaciones: van por projects dedicados (seed → acciones). */
 const ultimasCotizacionesIgnore = '**/ultimasCotizaciones*.spec.ts';
 
+const isCI = !!process.env.CI;
+const recordAll = process.env.E2E_RECORD_ALL === '1';
+const configuredWorkers = process.env.WORKERS;
+
+if (configuredWorkers !== undefined && !/^[1-9]\d*$/.test(configuredWorkers)) {
+  throw new Error('WORKERS debe ser un entero positivo, por ejemplo WORKERS=2.');
+}
+
+const workers = configuredWorkers === undefined ? (isCI ? 1 : 2) : Number(configuredWorkers);
+
+if (!Number.isSafeInteger(workers)) {
+  throw new Error('WORKERS debe ser un entero positivo seguro.');
+}
+
 export default defineConfig({
   testDir: './tests',
   timeout: 150000,
@@ -69,13 +83,13 @@ export default defineConfig({
 
   fullyParallel: true,
 
-  forbidOnly: !!process.env.CI,
+  forbidOnly: isCI,
 
-  retries: process.env.CI ? 2 : 0,
+  retries: isCI ? 2 : 0,
 
-  workers: process.env.CI ? 1 : process.env.WORKERS ? parseInt(process.env.WORKERS) : 4,
+  workers,
 
-  reporter: process.env.CI
+  reporter: isCI
     ? [['html'], ['github'], allureReporter, ['json', { outputFile: 'playwright-report/results.json' }]]
     : [
         ['html'],
@@ -88,9 +102,9 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     actionTimeout: 30000,
     navigationTimeout: 60000,
-    trace: 'on',
+    trace: recordAll ? 'on' : isCI ? 'on-first-retry' : 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'on',
+    video: recordAll ? 'on' : isCI ? 'on-first-retry' : 'off',
     headless: true,
   },
 

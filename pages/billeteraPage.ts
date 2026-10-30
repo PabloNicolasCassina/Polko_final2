@@ -4,6 +4,7 @@ import MovimientosTable from "../components/billetera/movimientosTable";
 import RetiroModal from "../components/billetera/retiroModal";
 import RetiroConfirmacion from "../components/billetera/retiroConfirmacion";
 import CommonButtons from "../components/commonButtons";
+import { esInfoComisionesBilletera, type InfoComisionesBilletera } from "../helpers/comisionesPendientes";
 
 export default class BilleteraPage {
     readonly page: Page;
@@ -111,6 +112,15 @@ export default class BilleteraPage {
         await this.cerrarHistorial();
         
         return movimiento !== null;
+    }
+
+    /** Navega a la billetera y devuelve lo que respondió `GET /newgetInfoAllComisiones` (base de las tarjetas). */
+    async cargarComisiones(): Promise<InfoComisionesBilletera> {
+        const responsePromise = this.page.waitForResponse(esInfoComisionesBilletera, { timeout: 90000 });
+        await this.navigate();
+        const response = await responsePromise;
+        expect(response.ok(), `newgetInfoAllComisiones respondió ${response.status()}`).toBe(true);
+        return response.json();
     }
 
     async refresh(): Promise<void> {

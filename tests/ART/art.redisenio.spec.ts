@@ -59,7 +59,7 @@ test.describe("POL-2882 Rediseño ART — sin admin", () => {
         await expect(art.regimenSelect).toBeVisible();
     });
 
-    test("C3 — Cotizar régimen general → popup → Mis Solicitudes ART", async ({ page }) => {
+    test("C3 — Cotizar régimen general → confirmación en línea → Mis Solicitudes ART", async ({ page }) => {
         test.setTimeout(180000);
         const art = new ArtCotizarLayout(page);
         const empleador = `Empresa Test QA General ${Date.now()}`;
@@ -70,8 +70,7 @@ test.describe("POL-2882 Rediseño ART — sin admin", () => {
         await art.cantEmpleadosInput.fill("25");
         await art.masaSalarialInput.fill("5000000");
         await art.cotizarBtn.click();
-        await expect(art.successPopupTitle).toBeVisible({ timeout: 90000 });
-        await expect(page.getByText(/Recibimos tu pedido de cotización/i)).toBeVisible();
+        await expect(art.solicitudEnviadaInlineTitle).toBeVisible({ timeout: 90000 });
         await art.verMisSolicitudesBtn.click();
         await expect(page).toHaveURL(/missolicitudes/, { timeout: 30000 });
         await expect(page.getByRole("tab", { name: "ART" })).toBeVisible({ timeout: 30000 });

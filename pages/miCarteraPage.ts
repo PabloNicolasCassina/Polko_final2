@@ -58,6 +58,8 @@ export default class MiCarteraPage {
     readonly paymentNoticeClose: Locator;
     readonly paymentNoticeTrigger: Locator;
 
+    /** Error del listado (falló `getDocumentacion`); el front no reintenta solo. */
+    readonly listError: Locator;
     readonly detail: Locator;
     readonly detailBackButton: Locator;
     /** Label visible del botón volver: el completo o "Volver" (<= 768px). */
@@ -110,6 +112,7 @@ export default class MiCarteraPage {
         this.paymentNoticeClose = page.locator(".PolizasPagas__noticeClose");
         this.paymentNoticeTrigger = page.locator(".PolizasPagas__noticeTrigger");
 
+        this.listError = page.getByText("No pudimos obtener los datos de tu cartera");
         this.detail = page.locator(".MiCarteraClientDetail");
         this.detailBackButton = this.detail.locator(".MiCarteraClientDetail__backButton");
         this.detailBackLabel = this.detailBackButton.filter({ visible: true });

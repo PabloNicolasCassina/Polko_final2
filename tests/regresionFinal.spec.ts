@@ -37,6 +37,7 @@ import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { documentarCaso } from "../helpers/documentarCaso";
 import { validarComparadorCtrowAuto } from "../helpers/comparadorCotizacion";
 import { registrarSuiteOperacionesPorFuera } from "../helpers/operacionesPorFueraSuite";
+import { COMPROBANTE_EMISION_LABEL, descargarComprobanteEmision } from "../helpers/comprobantes";
 import { parseMontoArs } from "../helpers/pdfPoliza";
 import {
     descargarPolizaDesdeMiCartera,
@@ -426,7 +427,8 @@ test.describe('Regresión Auto', () => {
                     `(facturación ${regConfig.billingConfig.type}, ${regConfig.installment} cuota/s, ${descuentoAuto}) ` +
                     `compara la cobertura validando que el PDF de cotización muestre el mismo premio que la tabla ` +
                     `y emite pagando con ${formaPagoAuto}. ` +
-                    "Espera emisión exitosa. Luego busca la póliza por patente en Mi cartera, la descarga y verifica " +
+                    `Espera emisión exitosa y descarga el "${COMPROBANTE_EMISION_LABEL}". ` +
+                    "Luego busca la póliza por patente en Mi cartera, la descarga y verifica " +
                     `que el PDF corresponda a esa patente y contenga el precio cotizado (±${TOLERANCIA_PRECIO_POLIZA * 100}%).`,
                 precondiciones: PRECONDICIONES_EMISION,
                 parametros: {
@@ -484,6 +486,9 @@ test.describe('Regresión Auto', () => {
                 // Extender timeout antes del último paso (emisión puede superar 6 min).
                 test.setTimeout(regConfig.compania === 'mercantil_andina' ? 540000 : 420000);
                 const { patente } = await emitirAuto(test, page, datosAutoParaTest, regConfig.compania, valorTabla, emisionAutoPage, { incluirDescarga: false });
+                await test.step(`Descargar el "${COMPROBANTE_EMISION_LABEL}"`, async () =>
+                    descargarComprobanteEmision(page, testInfo),
+                );
 
                 test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
                 const pdfPath = await test.step(`Buscar la póliza en Mi cartera por patente ${patente} y descargarla`, async () =>
@@ -532,7 +537,7 @@ test.describe("Regresión Moto", () => {
                     `selecciona ${regConfig.compania}` +
                     `${Object.keys(configMoto).length > 0 ? ", aplica configuración avanzada" : ""}` +
                     `, compara el plan "${regConfig.plan}" (${codigo}) validando que el PDF de cotización muestre el mismo premio ` +
-                    `y lo emite pagando con ${regConfig.formaPago}. Espera emisión exitosa. ` +
+                    `y lo emite pagando con ${regConfig.formaPago}. Espera emisión exitosa y descarga el "${COMPROBANTE_EMISION_LABEL}". ` +
                     "Luego busca la póliza por patente en Mi cartera, la descarga y verifica que el PDF corresponda a " +
                     `esa patente y contenga el precio cotizado (±${TOLERANCIA_PRECIO_POLIZA * 100}%).`,
                 precondiciones: PRECONDICIONES_EMISION,
@@ -585,12 +590,16 @@ test.describe("Regresión Moto", () => {
                     return { patente, emision: await cotizarMotoIA.assertEmisionExitosa() };
                 });
 
+                await test.step(`6- Descargar el "${COMPROBANTE_EMISION_LABEL}"`, async () =>
+                    descargarComprobanteEmision(page, testInfo),
+                );
+
                 test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
-                const pdfPath = await test.step(`6- Buscar la póliza en Mi cartera por patente ${patente} y descargarla`, async () =>
+                const pdfPath = await test.step(`7- Buscar la póliza en Mi cartera por patente ${patente} y descargarla`, async () =>
                     descargarPolizaDesdeMiCartera(page, testInfo, patente, regConfig.compania),
                 );
                 if (pdfPath) {
-                    await test.step(`7- Validar que el PDF sea la póliza de ${patente} y el precio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
+                    await test.step(`8- Validar que el PDF sea la póliza de ${patente} y el precio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
                         await validarPdfPoliza(testInfo, pdfPath, {
                             patente,
                             numero: emision.tipo === "Número de póliza" ? { tipo: emision.tipo, valor: emision.numero } : undefined,
@@ -711,7 +720,8 @@ test.describe("Regresión AP", () => {
                 descripcion:
                     `Cotiza Accidentes Personales (${regConfig.label}) con el cotizador de AP IA y emite en Sancor ` +
                     `el plan "${regConfig.plan}" del producto ${regConfig.producto} pagando con ${formaPagoAp}. ` +
-                    "Espera que el plan tenga precio y que la emisión sea exitosa. Luego busca la póliza por número " +
+                    `Espera que el plan tenga precio, que la emisión sea exitosa y descarga el "${COMPROBANTE_EMISION_LABEL}". ` +
+                    "Luego busca la póliza por número " +
                     "en Mi cartera, la descarga y verifica que el PDF corresponda a ese número y contenga el premio " +
                     `total cotizado (±${TOLERANCIA_PRECIO_POLIZA * 100}%).`,
                 precondiciones: PRECONDICIONES_EMISION,
@@ -754,12 +764,16 @@ test.describe("Regresión AP", () => {
                     return cotizarAP.assertEmisionExitosa();
                 });
 
+                await test.step(`4- Descargar el "${COMPROBANTE_EMISION_LABEL}"`, async () =>
+                    descargarComprobanteEmision(page, testInfo),
+                );
+
                 test.setTimeout(testInfo.timeout + TIMEOUT_EXTRA_POLIZA_MI_CARTERA);
-                const pdfPath = await test.step(`4- Buscar la póliza ${numero} en Mi cartera y descargarla`, async () =>
+                const pdfPath = await test.step(`5- Buscar la póliza ${numero} en Mi cartera y descargarla`, async () =>
                     descargarPolizaDesdeMiCartera(page, testInfo, numero, `AP-Sancor-${regConfig.producto}`),
                 );
                 if (pdfPath) {
-                    await test.step(`5- Validar que el PDF sea la póliza ${numero} y el premio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
+                    await test.step(`6- Validar que el PDF sea la póliza ${numero} y el premio coincida (±${TOLERANCIA_PRECIO_POLIZA * 100}%)`, async () => {
                         await validarPdfPoliza(testInfo, pdfPath, {
                             numero: { tipo: "Número de póliza", valor: numero },
                             premio: premioTotal,

@@ -48,7 +48,8 @@ Variables opcionales al ejecutar:
 
 | Variable | Efecto |
 |---|---|
-| `WORKERS=4` | Cantidad de workers en paralelo |
+| `WORKERS=4` | Cantidad de workers en paralelo; también se respeta en CI. Por defecto: 2 locales y 1 en CI. Debe ser un entero positivo. |
+| `E2E_RECORD_ALL=1` | Graba video y trace de todos los tests para diagnóstico |
 | `OPF_MOCK=1` | Operaciones por fuera: mockea el alta y no crea solicitudes reales |
 | `OPF_COMPLETAR=1` | Operaciones por fuera: corre las fases que esperan la aprobación en admin |
 | `OPF_APROBACION_TIMEOUT_MIN` / `OPF_POLL_INTERVAL_SEG` | Espera máxima (30 min) e intervalo de polling (15 s) de esas fases |
@@ -80,8 +81,17 @@ npx playwright test tests/motoHappyPath.spec.ts --project=mobile
 # Por ticket (la clave está en el título del describe)
 npx playwright test -g "POL-2951"
 
-# Regresión completa
+# Regresión desktop
 npm run test:regresion
+
+# Regresión de release: desktop y mobile, con 2 workers en total por defecto
+npx playwright test tests/regresionFinal.spec.ts --project=chromium --project=mobile
+
+# Ajustar concurrencia según los recursos disponibles
+WORKERS=4 npx playwright test tests/regresionFinal.spec.ts --project=chromium --project=mobile
+
+# Grabar toda la evidencia al investigar un caso
+E2E_RECORD_ALL=1 npx playwright test tests/regresionFinal.spec.ts --project=chromium -g "nombre del caso"
 
 # Modo UI / debug
 npx playwright test --ui
@@ -93,6 +103,14 @@ npm run allure:report
 ```
 
 `npx playwright test` sin `--project` corre todos los proyectos (incluidos Firefox, WebKit y mobile). Conviene indicar siempre el proyecto.
+
+### Recursos y evidencias
+
+Localmente se usan 2 workers, sin video, con capturas solo ante fallos y traces conservados solo cuando falla un test. El trace se graba durante cada test y se descarta si pasa: esta opción conserva el primer fallo, pero sigue consumiendo recursos de grabación.
+
+En CI se usa 1 worker por defecto y 2 reintentos. Video y trace se graban solo en el primer reintento. `WORKERS` permite ajustar la concurrencia en ambos entornos y `--workers` tiene prioridad. Los workers se comparten entre los proyectos seleccionados; no son 2 por proyecto.
+
+`E2E_RECORD_ALL=1` habilita video y trace para todos los intentos, tanto localmente como en CI. Reducir workers puede aliviar la carga de la PC y prolongar la duración total; aumentar la concurrencia requiere medir los recursos y los límites de las aseguradoras.
 
 ### Proyectos
 

@@ -19,6 +19,8 @@ export default class ArtCotizarLayout {
     readonly masaSalarialInput: Locator;
     readonly horasSelect: Locator;
     readonly successPopupTitle: Locator;
+    readonly solicitudEnviadaInlineTitle: Locator;
+    readonly solicitudEnviadaComprobante: Locator;
     readonly verMisSolicitudesBtn: Locator;
     readonly cerrarPopupBtn: Locator;
     readonly compararSticky: Locator;
@@ -31,6 +33,7 @@ export default class ArtCotizarLayout {
     readonly resumenHeading: Locator;
     readonly emitirResumenBtn: Locator;
     readonly emisionSuccessTitle: Locator;
+    readonly emisionComprobanteCard: Locator;
     readonly irAMisSolicitudesBtn: Locator;
     readonly emisionErrorText: Locator;
 
@@ -52,6 +55,8 @@ export default class ArtCotizarLayout {
         this.masaSalarialInput = page.locator("#number_masaSalarial");
         this.horasSelect = page.locator("#select_cantidadHoras");
         this.successPopupTitle = page.getByRole("heading", { name: "Solicitud enviada" });
+        this.solicitudEnviadaInlineTitle = page.getByRole("heading", { name: "Recibimos tu pedido de cotización" });
+        this.solicitudEnviadaComprobante = page.locator(".ArtSolicitudEnviada__documents");
         this.verMisSolicitudesBtn = page.getByRole("button", { name: "Ver mis solicitudes" });
         this.cerrarPopupBtn = page.getByRole("button", { name: "Cerrar" });
         this.compararSticky = page.getByRole("button", { name: /COMPARAR \(\d+\)/i });
@@ -64,6 +69,7 @@ export default class ArtCotizarLayout {
         this.resumenHeading = page.getByRole("heading", { name: "Revisá y modificá antes de emitir" });
         this.emitirResumenBtn = page.getByRole("button", { name: /^Emitir$/i });
         this.emisionSuccessTitle = page.getByText("¡Solicitud enviada!");
+        this.emisionComprobanteCard = page.getByRole("region", { name: "Comprobante de la solicitud" });
         this.irAMisSolicitudesBtn = page.getByRole("button", { name: "Ir a Mis Solicitudes" });
         this.emisionErrorText = page.getByText(/Parece que hubo un|Hubo un problema al emitir/i);
     }
@@ -95,6 +101,11 @@ export default class ArtCotizarLayout {
         await expect(this.page.getByRole("heading", { name: "Datos de los empleados" })).toBeVisible({
             timeout: 30000,
         });
+    }
+
+    /** La localidad del cliente se resuelve aparte (`getDatosLocalidades`); hasta entonces "Siguiente" no avanza. */
+    clienteLocalidadInput(codigoPostal: string | number): Locator {
+        return this.page.locator(`input[value^='(${codigoPostal})']`).first();
     }
 
     async selectRegimen(label: "Régimen General" | "Régimen Especial") {

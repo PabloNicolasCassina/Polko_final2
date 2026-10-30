@@ -35,6 +35,7 @@ export default class OperacionPorFuera {
     readonly completarSuccessTitle: Locator;
     readonly successDescargarPdfBtn: Locator;
     readonly descargaErrorTitle: Locator;
+    readonly comprobanteErrorTitle: Locator;
 
     constructor(page: Page) {
         this.page = page;
@@ -74,6 +75,15 @@ export default class OperacionPorFuera {
         this.completarSuccessTitle = page.getByText("Completaste los datos de la solicitud", { exact: true });
         this.successDescargarPdfBtn = page.getByText("Descargar pdf de cotización", { exact: true });
         this.descargaErrorTitle = page.getByText("No pudimos descargar la cobertura", { exact: true });
+        this.comprobanteErrorTitle = page.getByText("No pudimos descargar el comprobante", { exact: true });
+    }
+
+    /** Botón "Descargar" de un documento de la pantalla de éxito, por label exacto. */
+    documentoDescargarBtn(label: string): Locator {
+        return this.page
+            .locator(".EmissionDocumentDownloadRow")
+            .filter({ has: this.page.getByText(label, { exact: true }) })
+            .getByRole("button", { name: "Descargar" });
     }
 
     /** Botón Emitir/Solicitar de una fila de la cotización (`emitirButton_<id>`). */

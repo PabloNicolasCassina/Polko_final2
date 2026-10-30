@@ -9,6 +9,7 @@ import { datosEmisionAdmin, OPF_ADMIN_PREMIO_COTIZADA } from "../data/opfAdminEm
 import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { mockUserDataString } from "../helpers/mockUser";
 import { documentarCaso } from "../helpers/documentarCaso";
+import { descargarComprobanteSolicitud as descargarComprobante, type TipoComprobanteSolicitud } from "../helpers/comprobantes";
 import {
     NEWEMITIR_MOCK_ERROR,
     NEWEMITIR_MOCK_STATUS_CODE,
@@ -184,10 +185,11 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
                         `Cotiza un ${VEHICULO.marca} ${VEHICULO.modelo} ${VEHICULO.año}, selecciona ${compania} y emite el plan ` +
                         `"${nombrePlan}" (${codigo}) con ${formaPago}. La emisión devuelve error de la aseguradora (mock) y ` +
                         "desde la pantalla de error se solicita la emisión a Operaciones. Espera el popup de éxito con ID de " +
-                        "solicitud, payload OPF con la compañía y el flujo, y la solicitud en Mis Solicitudes ordenada por actualización.",
+                        'solicitud, payload OPF con la compañía y el flujo, descarga el "Comprobante de solicitud de emisión" ' +
+                        "y verifica la solicitud en Mis Solicitudes ordenada por actualización.",
                     precondiciones:
                         "Usuario logueado (storageState del project), datos de usuario mockeados con compañías habilitadas, " +
-                        "frontend en localhost:3000, general_api y microservice_products levantados. " +
+                        "frontend en localhost:3000, general_api, microservice_products y microservice_pdfs levantados. " +
                         `/newemitir mockeado con error ${NEWEMITIR_MOCK_STATUS_CODE}.` +
                         (OPF_BACKEND_MOCK ? " POST de OPF mockeado (OPF_MOCK=1)." : ""),
                     parametros: {
@@ -305,6 +307,7 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
                 });
 
                 if (OPF_BACKEND_MOCK) return;
+                await descargarComprobanteSolicitud(page, testInfo, "emision");
                 await validarEnMisSolicitudes(page, opfResult.id);
 
                 // Sin admin automatizado no se espera la emisión manual: bloquearía la corrida.
@@ -352,10 +355,11 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
                         `Cotiza un ${VEHICULO_FUERA_DE_PAUTA.marca} ${VEHICULO_FUERA_DE_PAUTA.modelo} ${VEHICULO_FUERA_DE_PAUTA.año}, selecciona ${compania}, abre ` +
                         '"¿Necesitás una cobertura diferente? Ver más" y solicita la primera cobertura fuera de pauta. ' +
                         "Completa cliente e inspección (si la compañía la pide) y solicita la cotización a Operaciones. " +
-                        "Espera la pantalla de éxito con ID, payload OPF catalogExtra sin premio y la solicitud en Mis Solicitudes.",
+                        "Espera la pantalla de éxito con ID y payload OPF catalogExtra sin premio, descarga el " +
+                        '"Comprobante de solicitud de cotización" y verifica la solicitud en Mis Solicitudes.',
                     precondiciones:
                         "Usuario logueado (storageState del project), datos de usuario mockeados con compañías habilitadas, " +
-                        "frontend en localhost:3000, general_api y microservice_products levantados." +
+                        "frontend en localhost:3000, general_api, microservice_products y microservice_pdfs levantados." +
                         (OPF_BACKEND_MOCK ? " POST de OPF mockeado (OPF_MOCK=1)." : ""),
                     parametros: {
                         Compañía: compania,
@@ -461,6 +465,7 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
                 });
 
                 if (OPF_BACKEND_MOCK) return;
+                await descargarComprobanteSolicitud(page, testInfo, "cotizacion");
                 await validarEnMisSolicitudes(page, opfResult.id);
 
                 guardarOpfPendiente(clave(companyEnum), {
@@ -508,10 +513,11 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
                     `Cotiza un ${VEHICULO_FUERA_DE_PAUTA.marca} ${VEHICULO_FUERA_DE_PAUTA.modelo} ${VEHICULO_FUERA_DE_PAUTA.año}, ` +
                     `selecciona ${compania} y verifica que "${nombre}" (${codigo}) tenga la etiqueta "Fuera de pauta" y el ` +
                     'botón "Solicitar". Solicita, continúa el popup "Solicitud de emisión", completa póliza, cliente y ' +
-                    'detalle del vehículo y "Solicitar emisión": OPF apiCatalogOutStandard con premio en "Pendiente de emisión".',
+                    'detalle del vehículo y "Solicitar emisión": OPF apiCatalogOutStandard con premio en "Pendiente de emisión". ' +
+                    'Descarga el "Comprobante de solicitud de emisión" de la pantalla de éxito.',
                 precondiciones:
                     "Usuario logueado (storageState del project), datos de usuario mockeados con compañías habilitadas, " +
-                    "frontend en localhost:3000, general_api y microservice_products levantados." +
+                    "frontend en localhost:3000, general_api, microservice_products y microservice_pdfs levantados." +
                     (OPF_BACKEND_MOCK ? " POST de OPF mockeado (OPF_MOCK=1)." : ""),
                 parametros: {
                     Compañía: compania,
@@ -610,6 +616,7 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
             });
 
             if (OPF_BACKEND_MOCK) return;
+            await descargarComprobanteSolicitud(page, testInfo, "emision");
             await validarEnMisSolicitudes(page, opfResult.id);
 
             const patente = buscarValor(opfPayload, "patente");
@@ -658,7 +665,8 @@ export function registrarSuiteOperacionesPorFuera(opciones: OpcionesSuiteOperaci
                     descripcion:
                         `Toma la solicitud fuera de pauta ${pendiente!.id} de ${compania} creada en la fase 1, espera que esté ` +
                         'Cotizada en admin, la abre desde Mis Solicitudes → Automotor → "A completar", descarga el PDF ' +
-                        "y solicita la emisión completando póliza y detalle del vehículo. Después espera que la emitan en " +
+                        "y solicita la emisión completando póliza y detalle del vehículo; en la pantalla de éxito descarga el " +
+                        '"Comprobante de solicitud de emisión". Después espera que la emitan en ' +
                         'admin, la abre en "Aprobada" (mismo ID), va a Mi Cartera con "Ver póliza en Mi Cartera" y la ' +
                         "encuentra buscando por la patente.",
                     precondiciones:
@@ -893,6 +901,18 @@ async function validarDescargaPdfCotizacion(page: Page, testInfo: TestInfo, boto
 }
 
 /**
+ * Descarga el comprobante de la pantalla de éxito OPF. El front busca la operación por ID antes de
+ * generar el PDF, así que con `OPF_MOCK=1` (operación inexistente) no se puede llamar.
+ */
+async function descargarComprobanteSolicitud(
+    page: Page,
+    testInfo: TestInfo,
+    tipo: TipoComprobanteSolicitud,
+): Promise<void> {
+    await descargarComprobante(page, testInfo, tipo);
+}
+
+/**
  * Fase 2 `apiCatalogOutStandard`: la solicitud ya nace en Pendiente de emisión, así que solo se abre
  * por ID en Mis Solicitudes y se descarga el "PDF de cotización" de Documentación.
  */
@@ -1022,6 +1042,8 @@ async function completarSolicitudCotizada(
         await expect(opf.successIdValue).toHaveText(opfId);
         await expect(opf.successDescargarPdfBtn).toBeVisible();
     });
+
+    await descargarComprobanteSolicitud(page, testInfo, "emision");
 
     const patente = buscarValor(patchBody, "patente");
     return patente ? String(patente) : undefined;

@@ -113,14 +113,21 @@ export async function abrirAdmin(): Promise<AdminSession> {
 
 /** Abre admin, corre `fn` y cierra el navegador aunque falle; adjunta screenshot si `fn` tira. */
 export async function conAdmin<T>(fn: (page: Page) => Promise<T>): Promise<T> {
+    return conAdminSession((admin) => fn(admin.page));
+}
+
+/** Como `conAdmin`, pero expone la sesión (contexto para permisos o pestañas extra). */
+export async function conAdminSession<T>(fn: (admin: AdminSession) => Promise<T>): Promise<T> {
     const admin = await abrirAdmin();
     try {
-        return await fn(admin.page);
+        return await fn(admin);
     } catch (error) {
-        await test.info().attach("admin-error.png", {
-            body: await admin.page.screenshot({ fullPage: true }).catch(() => Buffer.alloc(0)),
-            contentType: "image/png",
-        });
+        for (const [i, page] of admin.context.pages().entries()) {
+            await test.info().attach(`admin-error-${i + 1}.png`, {
+                body: await page.screenshot({ fullPage: true }).catch(() => Buffer.alloc(0)),
+                contentType: "image/png",
+            });
+        }
         throw error;
     } finally {
         await admin.close();
