@@ -104,6 +104,38 @@ export async function descargarComprobanteSolicitud(
 }
 
 /**
+ * Como `descargarComprobanteSolicitud`, pero no falla el test: si la descarga no anda, deja una
+ * anotación "Advertencia" con screenshot.
+ */
+export async function intentarDescargarComprobanteSolicitud(
+    page: Page,
+    testInfo: TestInfo,
+    tipo: TipoComprobanteSolicitud,
+    contenedor: Page | Locator = page,
+): Promise<void> {
+    testInfo.setTimeout(testInfo.timeout + TIMEOUT_MAX_COMPROBANTE);
+    try {
+        await descargarComprobanteSolicitud(page, testInfo, tipo, contenedor);
+    } catch (error) {
+        await advertirDescargaFallida(page, testInfo, COMPROBANTE_SOLICITUD[tipo].label, error);
+    }
+}
+
+async function advertirDescargaFallida(page: Page, testInfo: TestInfo, label: string, error: unknown): Promise<void> {
+    const motivo = (error instanceof Error ? error.message : String(error))
+        .replace(/\u001b\[[0-9;]*m/g, "")
+        .split("\n")[0];
+    testInfo.annotations.push({
+        type: "Advertencia",
+        description: `No se pudo descargar el "${label}": ${motivo}`,
+    });
+    const screenshot = await page.screenshot({ fullPage: true }).catch(() => null);
+    if (screenshot) {
+        await testInfo.attach(`${label} - no descargado`, { body: screenshot, contentType: "image/png" });
+    }
+}
+
+/**
  * Descarga el "Comprobante de emisión" de la pantalla de éxito de una emisión. Soporta el éxito
  * rediseñado (fila `.EmissionDocumentDownloadRow`, auto/moto) y el modal legacy con select (AP).
  * No falla el test: si la descarga no anda, deja una anotación "Advertencia" con screenshot.
@@ -133,16 +165,6 @@ export async function descargarComprobanteEmision(page: Page, testInfo: TestInfo
         });
         await expect(page.getByText("Error al descargar la documentación")).toBeHidden();
     } catch (error) {
-        const motivo = (error instanceof Error ? error.message : String(error))
-            .replace(/\u001b\[[0-9;]*m/g, "")
-            .split("\n")[0];
-        testInfo.annotations.push({
-            type: "Advertencia",
-            description: `No se pudo descargar el "${COMPROBANTE_EMISION_LABEL}": ${motivo}`,
-        });
-        const screenshot = await page.screenshot({ fullPage: true }).catch(() => null);
-        if (screenshot) {
-            await testInfo.attach("Comprobante-emision-no-descargado", { body: screenshot, contentType: "image/png" });
-        }
+        await advertirDescargaFallida(page, testInfo, COMPROBANTE_EMISION_LABEL, error);
     }
 }

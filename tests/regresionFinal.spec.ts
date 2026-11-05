@@ -899,11 +899,11 @@ test.describe("Flujos de la web", () => {
             resultadosOviedo = await miCartera.getResultadosCount();
             expect(resultadosOviedo).toBeGreaterThan(0);
 
-            const titles = await miCartera.getVisibleTitles();
-            expect(titles.length).toBeGreaterThan(0);
-            for (const title of titles) {
-                expect(title, `La card "${title}" debería coincidir con oviedo`).toMatch(/oviedo/i);
-            }
+            await MiCarteraPage.esperarQueTodasCumplan(
+                () => miCartera.getVisibleTitles(),
+                (title) => /oviedo/i.test(title),
+                "Cards que no coinciden con oviedo",
+            );
         });
 
         await test.step("La pestaña Cartera completa muestra el conteo de la búsqueda", async () => {
@@ -919,21 +919,22 @@ test.describe("Flujos de la web", () => {
             expect(resultadosSartori).toBeGreaterThan(0);
             expect(resultadosSartori).not.toBe(resultadosOviedo);
 
-            const titles = await miCartera.getVisibleTitles();
-            expect(titles.length).toBeGreaterThan(0);
-            for (const title of titles) {
-                expect(title, `La card "${title}" debería coincidir con sartori`).toMatch(/sartori/i);
-            }
+            await MiCarteraPage.esperarQueTodasCumplan(
+                () => miCartera.getVisibleTitles(),
+                (title) => /sartori/i.test(title),
+                "Cards que no coinciden con sartori",
+            );
         });
 
         await test.step("La búsqueda se mantiene al cambiar a Cartera completa", async () => {
             await miCartera.irATab(TAB_CARTERA_COMPLETA);
             await expect(miCartera.searchInput).toHaveValue("sartori");
             await expect(miCartera.counter).toBeVisible();
-            const titles = await miCartera.getVisibleTitles();
-            for (const title of titles) {
-                expect(title, `La card "${title}" debería coincidir con sartori`).toMatch(/sartori/i);
-            }
+            await MiCarteraPage.esperarQueTodasCumplan(
+                () => miCartera.getVisibleTitles(),
+                (title) => /sartori/i.test(title),
+                "Cards de Cartera completa que no coinciden con sartori",
+            );
         });
 
         await test.step("Limpiar la búsqueda vuelve al listado completo", async () => {
@@ -1051,14 +1052,11 @@ test.describe("Flujos de la web", () => {
                 await expect(miCartera.cards.first()).toBeVisible({ timeout: 15000 });
                 expect(await miCartera.getResultadosCount()).toBeGreaterThan(0);
 
-                const details = await miCartera.getVisibleDetails();
-                expect(details.length).toBeGreaterThan(0);
-                for (const detail of details) {
-                    expect(
-                        MiCarteraPage.companyFromDetail(detail),
-                        `Detalle "${detail}" debería ser de ${compania}`,
-                    ).toBe(compania);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => miCartera.getVisibleDetails(),
+                    (detail) => MiCarteraPage.companyFromDetail(detail) === compania,
+                    `Detalles que no son de ${compania}`,
+                );
             });
         }
     });
@@ -1095,14 +1093,11 @@ test.describe("Flujos de la web", () => {
                 await expect(miCartera.cards.first()).toBeVisible({ timeout: 15000 });
                 expect(await miCartera.getResultadosCount()).toBeGreaterThan(0);
 
-                const details = await miCartera.getVisibleDetails();
-                expect(details.length).toBeGreaterThan(0);
-                for (const detail of details) {
-                    expect(
-                        MiCarteraPage.productFromDetail(detail),
-                        `Detalle "${detail}" debería ser producto ${producto}`,
-                    ).toBe(producto);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => miCartera.getVisibleDetails(),
+                    (detail) => MiCarteraPage.productFromDetail(detail) === producto,
+                    `Detalles que no son del producto ${producto}`,
+                );
             });
         }
     });
@@ -1139,11 +1134,11 @@ test.describe("Flujos de la web", () => {
                 await expect(miCartera.cards.first()).toBeVisible({ timeout: 15000 });
                 expect(await miCartera.getResultadosCount()).toBeGreaterThan(0);
 
-                const statuses = await miCartera.getVisibleStatuses();
-                expect(statuses.length).toBeGreaterThan(0);
-                for (const status of statuses) {
-                    expect(status, `Estado visible "${status}" debería ser ${estado}`).toBe(estado);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => miCartera.getVisibleStatuses(),
+                    (status) => status === estado,
+                    `Cards que no están en estado ${estado}`,
+                );
             });
         }
     });
@@ -1173,7 +1168,7 @@ test.describe("Flujos de la web", () => {
             await expect(miCartera.paymentNotice).toContainText("Los datos se actualizan una vez al mes");
             await expect(miCartera.paymentNoticeUpdatedDate).toHaveText(/^\d{2} \S{3} \d{4}$/);
             await expect(miCartera.counter).toBeHidden();
-            await expect(miCartera.statusSelect).toBeHidden();
+            await expect(miCartera.statusSelect).toBeVisible();
             await expect(miCartera.originSelect).toBeVisible();
             await expect(miCartera.viewArchivedButton).toHaveText(VER_ARCHIVADAS);
             await expect(miCartera.viewArchivedButton).toHaveAttribute("aria-pressed", "false");
@@ -1259,14 +1254,11 @@ test.describe("Flujos de la web", () => {
                     );
                     return;
                 }
-                const details = await miCartera.getVisibleDetails();
-                expect(details.length).toBeGreaterThan(0);
-                for (const detail of details) {
-                    expect(
-                        MiCarteraPage.companyFromDetail(detail),
-                        `Detalle "${detail}" debería ser de ${compania}`,
-                    ).toBe(compania);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => miCartera.getVisibleDetails(),
+                    (detail) => MiCarteraPage.companyFromDetail(detail) === compania,
+                    `Detalles que no son de ${compania}`,
+                );
             });
         }
     });
@@ -1304,14 +1296,11 @@ test.describe("Flujos de la web", () => {
                     );
                     return;
                 }
-                const details = await miCartera.getVisibleDetails();
-                expect(details.length).toBeGreaterThan(0);
-                for (const detail of details) {
-                    expect(
-                        MiCarteraPage.productFromDetail(detail),
-                        `Detalle "${detail}" debería ser producto ${producto}`,
-                    ).toBe(producto);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => miCartera.getVisibleDetails(),
+                    (detail) => MiCarteraPage.productFromDetail(detail) === producto,
+                    `Detalles que no son del producto ${producto}`,
+                );
             });
         }
     });
@@ -1488,13 +1477,11 @@ test.describe("Flujos de la web", () => {
             await expect(misSolicitudes.automotorCards.first()).toBeVisible({ timeout: 15000 });
             expect(await misSolicitudes.getResultadosCount()).toBeGreaterThan(0);
 
-            const titles = await misSolicitudes.automotorCards
-                .locator(".MiCarteraEmissionCard__title")
-                .allTextContents();
-            expect(titles.length).toBeGreaterThan(0);
-            for (const title of titles) {
-                expect(title, `La card "${title}" debería coincidir con oviedo`).toMatch(/oviedo/i);
-            }
+            await MiCarteraPage.esperarQueTodasCumplan(
+                () => misSolicitudes.automotorCards.locator(".MiCarteraEmissionCard__title").allTextContents(),
+                (title) => /oviedo/i.test(title),
+                "Solicitudes que no coinciden con oviedo",
+            );
             await misSolicitudes.buscarAutomotor("");
         });
 
@@ -1507,16 +1494,11 @@ test.describe("Flujos de la web", () => {
                 await misSolicitudes.seleccionarOpcion(misSolicitudes.automotorCompanySelect, compania);
 
                 await expect(misSolicitudes.automotorCards.first()).toBeVisible({ timeout: 15000 });
-                const details = await misSolicitudes.automotorCards
-                    .locator(".MiCarteraEmissionCard__detail")
-                    .allTextContents();
-                expect(details.length).toBeGreaterThan(0);
-                for (const detail of details) {
-                    expect(
-                        MiCarteraPage.companyFromDetail(detail.trim()),
-                        `Detalle "${detail}" debería ser de ${compania}`,
-                    ).toBe(compania);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => misSolicitudes.automotorCards.locator(".MiCarteraEmissionCard__detail").allTextContents(),
+                    (detail) => MiCarteraPage.companyFromDetail(detail) === compania,
+                    `Solicitudes que no son de ${compania}`,
+                );
             });
         }
         await misSolicitudes.limpiarSelect(misSolicitudes.automotorCompanySelect);
@@ -1530,13 +1512,11 @@ test.describe("Flujos de la web", () => {
                 await misSolicitudes.seleccionarOpcion(misSolicitudes.automotorStatusSelect, estado);
 
                 await expect(misSolicitudes.automotorCards.first()).toBeVisible({ timeout: 15000 });
-                const statuses = await misSolicitudes.automotorCards
-                    .locator(".MiCarteraEmissionCard__status")
-                    .allTextContents();
-                expect(statuses.length).toBeGreaterThan(0);
-                for (const status of statuses) {
-                    expect(status.trim(), `Estado visible "${status}" debería ser ${estado}`).toBe(estado);
-                }
+                await MiCarteraPage.esperarQueTodasCumplan(
+                    () => misSolicitudes.automotorCards.locator(".MiCarteraEmissionCard__status").allTextContents(),
+                    (status) => status === estado,
+                    `Solicitudes que no están en estado ${estado}`,
+                );
             });
         }
     });

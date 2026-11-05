@@ -27,7 +27,7 @@ export default class EmisionDetalleAuto {
         this.marcaReguladorInput = page.locator('[id="input_vehiculo.gnc.marcaRegulador"]');
         this.nroReguladorInput = page.locator('[id="input_vehiculo.gnc.numeroRegulador"]');
         this.nuevoCilindroBtn = page.getByRole('button', { name: 'Nuevo cilindro' });
-        this.fechaVencimiento = page.getByRole('textbox', { name: 'dd/mm/yyyy' });
+        this.fechaVencimiento = page.getByRole('textbox', { name: 'Fecha de vencimiento' });
         this.sumaAsegurada = page.locator('.field__wrapper.mantine-Input-wrapper.mantine-NumberInput-wrapper');
     }
 

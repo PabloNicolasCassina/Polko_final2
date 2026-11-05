@@ -460,6 +460,27 @@ export default class MiCarteraPage {
         return (await this.cardStatuses().allTextContents()).map((t) => t.trim());
     }
 
+    /**
+     * El listado se re-renderiza después de que el filtro ya tiene valor (o la response ya llegó):
+     * leer las cards una sola vez puede agarrar las del listado anterior. Reintenta hasta que todas cumplan.
+     */
+    static async esperarQueTodasCumplan(
+        leer: () => Promise<string[]>,
+        cumple: (valor: string) => boolean,
+        mensaje: string,
+        timeout = 15000,
+    ): Promise<void> {
+        await expect
+            .poll(
+                async () => {
+                    const valores = (await leer()).map((v) => v.trim());
+                    return valores.length ? valores.filter((v) => !cumple(v)) : ["<sin cards>"];
+                },
+                { message: mensaje, timeout },
+            )
+            .toEqual([]);
+    }
+
     /** Extrae la compañía del detalle: "Compañía - Producto[ - fecha]". */
     static companyFromDetail(detail: string): string {
         return detail.split(" - ")[0]?.trim() ?? "";

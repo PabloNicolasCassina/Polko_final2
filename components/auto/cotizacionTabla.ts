@@ -120,7 +120,7 @@ export default class CotizacionTabla {
         this.rivaCard = page.locator('#Capa_1').nth(1);
         this.fedPatCard = page.locator('#Capa_1').nth(2);
         this.configAvanzadaBtn = page.getByText('Configuración avanzada', { exact: true });
-        this.fechaVigencia = page.getByRole('textbox', { name: 'dd/mm/yyyy' });
+        this.fechaVigencia = page.getByPlaceholder('dd/mm/yyyy');
         // Nested Formik: el NumberInput no expone name accesible ni #number_sumaAseguradaVehiculo.
         // El label "Suma asegurada vehículo*" es hermano del textbox, ambos dentro del wrapper
         // leaf de Mantine (.field__wrapper.mantine-Input-wrapper.mantine-NumberInput-wrapper).

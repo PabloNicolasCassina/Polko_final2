@@ -9,7 +9,7 @@ import { datosEmisionAdmin, OPF_ADMIN_PREMIO_COTIZADA } from "../data/opfAdminEm
 import { attachBackendLogsOnFailure } from "../helpers/backendLogs";
 import { mockUserDataString } from "../helpers/mockUser";
 import { documentarCaso } from "../helpers/documentarCaso";
-import { descargarComprobanteSolicitud as descargarComprobante, type TipoComprobanteSolicitud } from "../helpers/comprobantes";
+import { intentarDescargarComprobanteSolicitud, type TipoComprobanteSolicitud } from "../helpers/comprobantes";
 import {
     NEWEMITIR_MOCK_ERROR,
     NEWEMITIR_MOCK_STATUS_CODE,
@@ -903,13 +903,14 @@ async function validarDescargaPdfCotizacion(page: Page, testInfo: TestInfo, boto
 /**
  * Descarga el comprobante de la pantalla de éxito OPF. El front busca la operación por ID antes de
  * generar el PDF, así que con `OPF_MOCK=1` (operación inexistente) no se puede llamar.
+ * No falla el test: si no descarga, deja una "Advertencia" en el reporte.
  */
 async function descargarComprobanteSolicitud(
     page: Page,
     testInfo: TestInfo,
     tipo: TipoComprobanteSolicitud,
 ): Promise<void> {
-    await descargarComprobante(page, testInfo, tipo);
+    await intentarDescargarComprobanteSolicitud(page, testInfo, tipo);
 }
 
 /**

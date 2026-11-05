@@ -54,7 +54,7 @@ export function parseMontoArs(texto: string): number {
 
 /** Montos del texto: números con separadores o decimales, y enteros solo si van precedidos de "$". */
 export function extraerMontos(texto: string): number[] {
-    const regex = /(\$\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+[.,]\d{1,2}|\d{4,})/g;
+    const regex = /((?:\$|ARS)\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+[.,]\d{1,2}|\d{4,})/g;
     const montos: number[] = [];
     for (const match of texto.matchAll(regex)) {
         const [, signo, valor] = match;

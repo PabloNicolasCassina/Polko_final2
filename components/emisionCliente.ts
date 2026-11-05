@@ -38,10 +38,10 @@ export default class EmisionCliente {
         this.femeninoRadio = page.getByRole("radio", { name: "Femenino" });
         this.localidadInput = page
             .locator('[id="select_clientes.0.codigosLocalidad"]')
-            .or(page.getByRole("textbox", { name: "Código postal" }));
+            .or(page.getByRole("textbox", { name: "Código postal", exact: true }));
         this.emailInput = page.locator('[id="input_clientes.0.email"]');
         this.telefonoInput = page.locator('[id="phone_clientes.0.telefono"]');
-        this.fechaNacimientoInput = page.getByRole("textbox", { name: "dd/mm/yyyy" });
+        this.fechaNacimientoInput = page.getByRole("textbox", { name: "Fecha de nacimiento" });
         this.situacionImpositivaInput = page
             .locator('[id="select_clientes.0.situacionImpositiva"]')
             .or(page.locator('[id="dependant_clientes.0.situacionImpositiva"]'));
@@ -101,7 +101,7 @@ export default class EmisionCliente {
     getFechaNacimientoInput(index: number): Locator {
         return this.page
             .locator(`[id="date_clientes.${index}.fechaNacimiento"]`)
-            .or(this.page.getByRole("textbox", { name: "dd/mm/yyyy" }));
+            .or(this.page.getByRole("textbox", { name: "Fecha de nacimiento" }).nth(index));
     }
 
     getCheckLlenadoCliente(index: number): Locator {
